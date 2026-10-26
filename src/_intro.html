@@ -1,0 +1,226 @@
+<style>
+  /* ▼ 画面全体オーバーレイ（スクロール対応） ▼ */
+  #intro-overlay {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100vw; height: 100vh;
+    background-color: #fdfbf7; /* 本体と同じ生成り色 */
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    overflow-y: auto; /* 縦スクロール許可 */
+    padding: 20px 0;
+    background-color: #fdfbf7; /* 生成り色 */
+    background-image:
+      linear-gradient(rgba(73, 167, 233, 0.15) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(73, 167, 233, 0.15) 1px, transparent 1px);
+    background-size: 20px 20px;
+    background-position: center top;
+  }
+
+  /* コンテンツ幅 */
+  .intro-content {
+    width: 90%;
+    max-width: 850px; /* 横並びが窮屈にならない幅 */
+    margin: auto 0;   /* 上下中央寄せ */
+    text-align: center;
+    font-family: 'Zen Maru Gothic', sans-serif;
+  }
+
+  /* タイトル周り */
+  .intro-header {
+    margin-bottom: 25px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 15px;
+  }
+  .intro-icon {
+    font-size: 3rem; 
+    animation: sway 3s infinite ease-in-out;
+  }
+  .intro-title {
+    font-size: 2rem;
+    font-weight: bold;
+    color: #5d4037;
+    margin: 0;
+  }
+
+  /* カードリスト：グリッドレイアウト */
+  .intro-rules {
+    display: grid;
+    grid-template-columns: 1fr; /* スマホは1列 */
+    gap: 20px; /* カード間のゆとり */
+    margin-bottom: 30px;
+    text-align: left;
+  }
+
+  /* Chromebook以上の画面幅なら2列にする */
+  @media (min-width: 600px) {
+    .intro-rules {
+      grid-template-columns: 1fr 1fr; /* 2列均等配置 */
+    }
+  }
+
+  /* カードデザイン */
+  .intro-rule-card {
+    background-color: #ffffff;
+    border: 3px solid #f0f0f0;
+    border-radius: 18px;
+    padding: 15px 20px; 
+    display: flex;
+    align-items: center;
+    box-shadow: 0 4px 0 #ecdca8;
+    height: 100%; /* 高さを揃える */
+    box-sizing: border-box; /* パディングを含めたサイズ計算 */
+  }
+
+  /* アイコンエリア */
+  .rule-icon {
+    font-size: 2rem; 
+    min-width: 65px;
+    height: 65px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #fff9c4;
+    border-radius: 50%;
+    margin-right: 15px;
+    flex-shrink: 0;
+  }
+
+  /* テキストエリア */
+  .rule-text h3 {
+    margin: 0 0 4px 0;
+    font-size: 1.3rem; 
+    color: #fb8c00;
+  }
+  .rule-text p {
+    margin: 0;
+    font-size: 1.1rem; 
+    line-height: 1.3;
+    color: #5d4037;
+    font-weight: bold;
+  }
+
+  /* ボタンエリア */
+  .intro-btn-area {
+    margin-bottom: 20px;
+  }
+  
+  .btn-agree {
+    /* フォントを丸文字に固定 */
+    font-family: 'Zen Maru Gothic', sans-serif;
+    background: #ffb74d; /* オレンジ色 */
+    color: #fff;
+    font-size: 1.6rem;    /* 文字を大きく */
+    font-weight: bold;
+    border: 4px solid #fff;
+    border-radius: 50px;
+    padding: 15px 70px;   /* 押しやすいように横幅を広く */
+    cursor: pointer;
+    box-shadow: 0 6px 0 #f57c00; /* 立体的な影 */
+    transition: all 0.2s ease;   /* 動きをなめらかに */
+    outline: none;
+  }
+
+  /* ★ ホバー演出（マウスをのせたとき） ★ */
+  @media (hover: hover) {
+    .btn-agree:hover {
+      transform: translateY(-3px) scale(1.05); /* 少し浮いて、少し大きく */
+      background: #ffcc80; /* 少し明るいオレンジに */
+      box-shadow: 0 9px 0 #f57c00; /* 影を深くして浮遊感を出す */
+    }
+  }
+
+  .btn-agree:active {
+    transform: translateY(4px);
+    box-shadow: 0 2px 0 #f57c00;
+  }
+
+  @keyframes sway {
+    0%, 100% { transform: rotate(-8deg); }
+    50% { transform: rotate(8deg); }
+  }
+</style>
+
+<div id="intro-overlay">
+  <div class="intro-content">
+    
+    <div class="intro-header">
+      <div class="intro-icon">🌱</div>
+      <h2 class="intro-title">そうだんするまえに…</h2>
+    </div>
+
+    <div class="intro-rules">
+      
+      <div class="intro-rule-card">
+        <div class="rule-icon">😊</div>
+        <div class="rule-text">
+          <h3>ほんとうの きもち</h3>
+          <p>うそは つかなくて いいよ</p>
+        </div>
+      </div>
+
+      <div class="intro-rule-card">
+        <div class="rule-icon">☁️</div>
+        <div class="rule-text">
+          <h3>ふわふわ ことば</h3>
+          <p>わるぐちは やめようね</p>
+        </div>
+      </div>
+
+      <div class="intro-rule-card">
+        <div class="rule-icon">💦</div>
+        <div class="rule-text">
+          <h3>AIだから まちがえるかも</h3>
+          <p>へんだなと おもったら<br>おとなのひとに きいてみてね</p>
+        </div>
+      </div>
+
+      <div class="intro-rule-card">
+        <div class="rule-icon">🔒</div>
+        <div class="rule-text">
+          <h3>ひみつは まもるよ</h3>
+          <p>だれにも いわないよ</p>
+        </div>
+      </div>
+
+      <div class="intro-rule-card">
+        <div class="rule-icon">🏠</div>
+        <div class="rule-text">
+          <h3>こまったときは</h3>
+          <p>せんせいや おうちのひとに<br>おはなし してね</p>
+        </div>
+      </div>
+
+      <div class="intro-rule-card">
+        <div class="rule-icon">🌈</div>
+        <div class="rule-text">
+          <h3>いつでも おともだち</h3>
+          <p>たのしいことも うれしいことも<br>なんでも はなしてね</p>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="intro-btn-area">
+      <button class="btn-agree" onclick="IntroLogic.close()">わかりました</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const IntroLogic = {
+    close: function() {
+      const overlay = document.getElementById('intro-overlay');
+      if(!overlay) return;
+      
+      overlay.style.opacity = '0';
+      setTimeout(() => {
+        overlay.style.display = 'none';
+      }, 500);
+    }
+  };
+</script>

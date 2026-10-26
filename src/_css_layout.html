@@ -1,0 +1,319 @@
+<style>
+  /* ▼ リセット & ベース（方眼紙テーマ） ▼ */
+  html, body {
+    margin: 0; padding: 0;
+    width: 100%; 
+    height: 100dvh; /* シェルフを除いた高さを取得 */
+    overflow: hidden; 
+    font-family: 'Hiragino Maru Gothic ProN', 'Rounded Mplus 1c', sans-serif;
+    /* 生成り色ベース */
+    background-color: #fdfbf7;
+    /* CSSグラデーションで5mm方眼を再現 */
+    background-image:
+      linear-gradient(135deg, rgba(255,249,196,0.5) 0%, rgba(255,255,255,0) 60%),
+      linear-gradient(rgba(73, 167, 233, 0.15) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(73, 167, 233, 0.15) 1px, transparent 1px);
+    background-size: 20px 20px;
+    background-position: center top;
+    background-attachment: fixed;
+    box-sizing: border-box;
+  }
+
+  /* ▼ メインレイアウト（左右分割） ▼ */
+  #app-container {
+    display: flex;
+    width: 100vw;
+    height: 100%;
+    flex-direction: row; 
+    position: relative;
+    box-sizing: border-box;
+  }
+
+/* ▼ 1. サイドバー：下詰めで配置 */
+  #sidebar {
+    width: 350px;
+    height: 100%; 
+    background: transparent;
+    flex-shrink: 0;
+    
+    display: flex;
+    flex-direction: column; /* 縦並び */
+    justify-content: flex-end; /* 中身をすべて下底に寄せる */
+    
+    border-right: 3px double rgba(0,0,0,0.1); 
+    position: relative;
+    z-index: 10;
+    overflow: hidden; 
+    box-sizing: border-box;
+    padding: 0;
+  }
+
+  /* ▼ 2. アバターエリア：ボタンの上の隙間を埋める */
+  #avatar-area {
+    /* 残りの空間を全部埋めるが、中身は下に寄せる */
+    flex: 1; 
+    width: 100%;
+    min-height: 0; /* 縮小可能にする */
+    
+    display: flex;
+    align-items: flex-end; /* ここが重要：アバターを底辺に合わせる */
+    justify-content: center; /* 左右中央 */
+    
+    position: relative;
+    box-sizing: border-box; 
+    pointer-events: none;
+    
+    /* 画像とボタンの隙間をゼロにする */
+    padding-bottom: 0; 
+    margin-bottom: 0;
+  }
+
+  /* アバター本体 */
+  .avatar-mount-point {
+    position: relative; 
+    
+    /* 以前の absolute 設定を確実に打ち消す */
+    bottom: auto; right: auto; top: auto; left: auto;
+    
+    /* サイズ調整 */
+    height: auto; 
+    width: 85%; /* 横幅に合わせてサイズ決定 */
+    max-height: 350px; 
+    aspect-ratio: 1 / 1; 
+
+    display: flex;
+    justify-content: center;
+    align-items: flex-end; 
+    
+    pointer-events: auto; 
+    filter: drop-shadow(5px 5px 10px rgba(0,0,0,0.1));
+    
+    /* 下のマージンをゼロにしてボタンに密着させる */
+    margin: 0;
+  }
+
+  .avatar-image {
+    width: auto;
+    height: 100%;
+    max-width: 100%;
+    object-fit: contain;
+    object-position: bottom center;
+    display: block; /* 画像の下に微妙な隙間ができるのを防ぐ */
+  }
+
+  /* ▼ 3. 操作ボタンエリア：ここを表示しないと画像が浮いてしまいます */
+  #sidebar-controls {
+    display: none;
+    
+    /* 高さ固定 */
+    height: 90px; 
+    min-height: 90px; 
+    flex-shrink: 0; /* 縮ませない */
+
+    padding: 0 10px;
+    background: rgba(255,255,255,0.8); 
+    backdrop-filter: blur(5px);
+    border-top: 1px dashed rgba(0,0,0,0.1);
+    
+    flex-direction: row; 
+    align-items: center;
+    justify-content: space-around; 
+    gap: 5px;
+    
+    /* 角丸などの装飾 */
+    border-radius: 0 15px 0 0; 
+    box-sizing: border-box;
+    z-index: 20;
+    
+    /* 以前の display: none の書き損じコメントを削除しました */
+  }
+
+  .control-buttons {
+    display: flex;
+    flex-direction: row; 
+    width: 100%;
+    gap: 10px;
+  }
+
+  .btn-tool {
+    flex: 1; 
+    height: 60px; 
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    line-height: 1.2;
+    margin: 0;
+  }
+  
+  .btn-tool .icon {
+    font-size: 1.4rem;
+    margin-bottom: 2px;
+  }
+
+  /* 右メインエリア (ノート本文) */
+  #main-content {
+    flex-grow: 1;
+    position: relative;
+    /* 背景は透過 */
+    background: transparent; 
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ▼ ビュー切り替えシステム ▼ */
+  .view-panel {
+    display: none; 
+    width: 100%;
+    height: 100%;
+    flex-direction: column;
+    overflow-y: auto; 
+    position: absolute;
+    top: 0; left: 0;
+    /* クレヨン風スクロールバーのためにpadding調整 */
+    padding-right: 5px; 
+  }
+
+  .view-panel.active {
+    display: flex; 
+  }
+
+  /* ▼ 各ビュー調整 ▼ */
+  
+  /* 【修正】タイトル画面のレイアウトを整理 */
+  #view-title {
+    align-items: center;
+    justify-content: center;
+    gap: 30px; /* 各要素の間にゆとりを持たせる */
+    padding: 30px;
+    background:transparent; 
+  }
+  
+  /* 【修正】タイトル画面のアクションボタンエリア */
+  .title-actions {
+    display: flex;
+    flex-direction: column; /* ボタンを縦に並べて押しやすく */
+    gap: 20px;
+    align-items: center;
+    width: 100%;
+    max-width: 400px; /* 広がりすぎないように */
+  }
+
+  /* 【修正】設定ボックスの配置 */
+  .settings-box {
+    display: flex;
+    flex-wrap: wrap; /* 画面が狭いときは折り返す */
+    justify-content: center;
+    gap: 15px;
+    margin-top: 20px;
+    padding: 20px;
+    background: rgba(255,255,255,0.6); /* 半透明の白い下地を敷く */
+    border-radius: 20px;
+    border: 2px dashed rgba(0,0,0,0.1); /* ステッチ風の枠線 */
+  }
+
+
+  #view-chat {
+    background: transparent; /* 透明 */
+  }
+  
+  #chat-history-area {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px 40px; /* 余白をたっぷりとる */
+    display: flex;
+    flex-direction: column;
+    scroll-behavior: smooth;
+  }
+  
+  #chat-input-area {
+    /* ★高さ合わせ: 左側と同じ90pxに固定 */
+    height: 90px;
+    min-height: 90px;
+    box-sizing: border-box; /* paddingを含めた高さにする */
+    
+    /* ★余白調整: 上下のpaddingを0にして、Flexboxの中央揃えに任せる */
+    padding: 0 30px;
+    
+    background: rgba(255,255,255,0.8); /* すりガラス風 */
+    backdrop-filter: blur(5px);
+    
+    display: flex;
+    align-items: center; /* これで入力欄がど真ん中に来ます */
+    gap: 15px;
+    
+    border-top: 1px dashed rgba(0,0,0,0.1);
+    
+    /* ★角丸追加: 左のパネルと対になるよう、「左上」を丸くする */
+    border-radius: 15px 0 0 0;
+    
+    /* 右側エリアなので右端は直角のままでOK、あるいは全体を丸くしたければ下記に変更 */
+    /* border-radius: 15px 15px 0 0; */
+    
+    /* 重なり順序の調整（影などを落とす場合） */
+    z-index: 20;
+  }
+
+  /* 日記画面とコレクション画面を透明（方眼紙が見える状態）にする */
+  #view-record, 
+  #view-collection {
+    background: transparent;
+    /* ★重要：親パネル自体のスクロールを禁止し、画面内に収める */
+    overflow: hidden;
+  }
+  
+  .panel-header {
+    padding: 5px 30px;
+    background: transparent;
+    border-bottom: 2px dashed rgba(0,0,0,0.1);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    /* ★重要：ヘッダーの高さが潰れないように固定 */
+    flex-shrink: 0; 
+    z-index: 10; /* コンテンツより手前に表示 */
+  }
+  #record-list-container {
+    padding: 30px;
+    max-width: 900px;
+    margin: 0 auto;
+    width: 100%;
+    /* ★重要：余った高さを埋め、ここだけスクロールさせる */
+    flex: 1; 
+    overflow-y: auto; 
+    
+    /* コンテンツの末尾が切れにくいように少し余白を追加 */
+    box-sizing: border-box;
+    padding-bottom: 100px;
+  }
+
+  /* ▼ モーダル共通配置 ▼ */
+  .modal-overlay {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100vw; height: 100vh;
+    background: rgba(255, 255, 255, 0.6); /* 白っぽくぼかす */
+    z-index: 2000;
+    display: none; 
+    justify-content: center;
+    align-items: center;
+    backdrop-filter: blur(4px);
+  }
+
+  /* ▼ クレヨン風スクロールバー ▼ */
+  ::-webkit-scrollbar {
+    width: 16px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent; 
+  }
+  ::-webkit-scrollbar-thumb {
+    background-color: #ffcc80; /* オレンジ色のクレヨン */
+    border-radius: 20px;
+    border: 4px solid transparent;
+    background-clip: content-box; /* 縁取りを作って手書き感を出す */
+  }
+
+</style>

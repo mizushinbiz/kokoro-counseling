@@ -1,0 +1,590 @@
+<style>
+  /* ▼ アバターアニメーション ▼ */
+  .avatar-image {
+    transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+    filter: drop-shadow(0 10px 10px rgba(0,0,0,0.15));
+  }
+  .avatar-placeholder {
+    font-size: 8rem;
+    opacity: 0.5;
+    animation: float 4s infinite ease-in-out;
+  }
+
+  /* ▼ 基本ボタンリセット ▼ */
+  button { 
+    cursor: pointer; border: none; outline: none; 
+    font-family: inherit; font-weight: bold; color: #555;
+    transition: transform 0.1s, box-shadow 0.1s;
+  }
+  button:active { transform: scale(0.95); }
+
+  /* タイトルロゴの装飾 */
+  .title-logo {
+    font-size: 3.5rem;
+    color: #5d4037;
+    font-family: 'Zen Maru Gothic', 'Hiragino Maru Gothic ProN', sans-serif;
+    text-shadow: 3px 3px 0px #fff, 5px 5px 0px rgba(0,0,0,0.1);
+    position: relative;
+    margin-bottom: 10px;
+  }
+  .title-logo::before {
+    content: '🌱'; position: absolute; top: -25px; left: -35px; font-size: 2.5rem; transform: rotate(-20deg);
+  }
+  .title-logo::after {
+    content: '☀️'; position: absolute; top: -25px; right: -35px; font-size: 2.5rem; transform: rotate(20deg);
+  }
+
+  /* 設定ボックス内のラベル装飾 */
+  .settings-box label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 15px;
+    background: #fff;
+    border: 2px solid #ddd;
+    border-radius: 25px;
+    cursor: pointer;
+    font-size: 1rem;
+    color: #666;
+    box-shadow: 0 3px 5px rgba(0,0,0,0.05);
+    transition: all 0.2s;
+  }
+  .settings-box label:hover { background: #f1f8e9; border-color: #81c784; transform: translateY(-2px); }
+  
+  .settings-box input {
+    accent-color: #81c784;
+    transform: scale(1.3);
+    margin: 0;
+  }
+
+  /* シール風ボタン（選択肢） */
+  .btn-option {
+    display: inline-flex;
+    align-items: center; justify-content: center;
+    width: 100px; height: 100px;
+    border-radius: 50%;
+    background: #fff;
+    border: 4px solid #fff;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    font-size: 1rem;
+    color: #444;
+    text-align: center;
+    margin: 5px;
+    position: relative;
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  .btn-option:nth-child(3n) { border-radius: 20%; transform: rotate(-2deg); }
+  .btn-option:nth-child(5n) { background-color: #e1bee7; }
+  .btn-option:hover {
+    transform: rotate(5deg) scale(1.1);
+    box-shadow: 0 8px 15px rgba(0,0,0,0.15);
+    z-index: 1;
+  }
+
+  /* サイドバーのツールボタン（はなす・えらぶ・おわる） */
+  .btn-tool {
+    background: #fff8e1; 
+    border: 2px solid #ffecb3; 
+    border-radius: 20px; 
+    box-shadow: 0 5px 0 #ffe0b2; 
+    color: #5d4037; 
+    font-family: 'Zen Maru Gothic', sans-serif;
+    font-size: 0.9rem;
+    font-weight: bold;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 5px;
+  }
+  .btn-tool:hover {
+    background: #fff;
+    transform: translateY(-2px);
+    border-color: #ffcc80;
+  }
+  .btn-tool:active {
+    box-shadow: 0 2px 0 #ffe0b2;
+    transform: translateY(3px);
+  }
+  .btn-tool .icon {
+    font-size: 1.6rem;
+    margin-bottom: 4px;
+    color: #fb8c00;
+  }
+
+
+  /* メインアクションボタン */
+  .btn-primary {
+    background: #ffb74d;
+    color: #fff;
+    font-size: 1.6rem;
+    font-weight: bold;
+    padding: 18px 50px; 
+    border-radius: 50px;
+    border: 4px solid #fff;
+    box-shadow: 0 6px 0 #f57c00, 0 10px 20px rgba(0,0,0,0.15);
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+    width: 100%;
+  }
+  .btn-primary:hover { transform: translateY(-3px); box-shadow: 0 8px 0 #f57c00, 0 15px 25px rgba(0,0,0,0.2); }
+  .btn-primary:active { transform: translateY(3px); box-shadow: 0 2px 0 #f57c00; }
+
+  /* サブアクションボタン */
+  .btn-secondary {
+    background: #a5d6a7;
+    color: #fff;
+    font-size: 1.3rem; 
+    font-weight: bold;
+    padding: 12px 40px; 
+    border-radius: 50px;
+    border: 3px solid #fff;
+    box-shadow: 0 4px 0 #66bb6a, 0 5px 10px rgba(0,0,0,0.1);
+    text-shadow: 1px 1px 1px rgba(0,0,0,0.1);
+    width: 100%;
+  }
+  .btn-secondary:hover { transform: translateY(-2px); }
+
+  /* チャットエリア装飾 */
+  .chat-row { display: flex; margin-bottom: 25px; width: 100%; align-items: flex-end;}
+  
+  .chat-row.user { justify-content: flex-end; }
+  .chat-row.user .chat-bubble {
+    background: #fff9c4;
+    color: #444;
+    padding: 15px 25px;
+    font-size: 1.1rem;
+    line-height: 1.6;
+    max-width: 60%;
+    box-shadow: 2px 4px 8px rgba(0,0,0,0.1);
+    transform: rotate(-1deg);
+    border-radius: 2px 2px 15px 2px;
+    position: relative;
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
+    word-break: break-word;
+  }
+  .chat-row.user .chat-bubble::before {
+    content: ''; position: absolute; top: -10px; left: 50%; transform: translateX(-50%);
+    width: 30%; height: 15px; background: rgba(255,255,255,0.4);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  }
+
+  .chat-row.ai { justify-content: flex-start; }
+  .chat-row.ai .chat-bubble {
+    background: #f1f8e9; 
+    color: #333;
+    padding: 20px;
+    font-size: 1.2rem;
+    font-family: 'Zen Maru Gothic', 'Hiragino Maru Gothic ProN', sans-serif;
+    line-height: 1.8;
+    max-width: 75%;
+    border-radius: 20px 20px 20px 2px;
+    box-shadow: 2px 4px 8px rgba(0,0,0,0.1);
+    position: relative;
+    border: none;
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
+    word-break: break-word;
+  }
+  .chat-row.ai .chat-bubble::after {
+    content: '✏️'; position: absolute; bottom: -10px; right: -10px; font-size: 1.2rem; opacity: 0.5;
+  }
+
+  /* 入力フォーム */
+  #chat-input {
+    flex: 1; padding: 15px; font-size: 1.2rem;
+    border: 3px solid #b0bec5; border-radius: 30px;
+    background: #fff; box-shadow: inset 0 2px 5px rgba(0,0,0,0.05);
+  }
+  #chat-input:focus { border-color: #4fc3f7; }
+  
+  #btn-send {
+    width: 60px; height: 60px; border-radius: 50%;
+    background: #81c784; color: white; font-size: 1.5rem;
+    border: 3px solid #fff; box-shadow: 0 4px 0 #4caf50;
+  }
+  #btn-send:active { transform: translateY(4px); box-shadow: none; }
+
+  /* モーダルボックス */
+  .modal-box {
+    background: #fff;
+    padding: 40px;
+    border-radius: 30px;
+    border: 8px solid #b3e5fc;
+    width: 90%; max-width: 500px;
+    text-align: center;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.15);
+    animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    font-family: 'Zen Maru Gothic', sans-serif;
+  }
+  .modal-box.wide-box { max-width: 900px; }
+  .modal-box::before {
+    content: ''; position: absolute; top: -15px; left: 50%; transform: translateX(-50%);
+    width: 80%; height: 20px;
+    background-image: radial-gradient(circle, #b0bec5 30%, transparent 31%);
+    background-size: 30px 20px; background-repeat: repeat-x;
+  }
+
+  .grid-buttons { display: flex; flex-wrap: wrap; justify-content: center; gap: 15px; margin-top: 20px; }
+
+  /* ▼ モーダル内の操作ボタン（共通デザイン：小石風） ▼ */
+  .modal-box button:not(.btn-option) {
+    font-size: 1.1rem;
+    font-weight: bold;
+    padding: 12px 30px;
+    min-width: 160px; /* 幅を少し広げて安定感を出す */
+    border-radius: 50px;
+    border: 3px solid #fff;
+    background: #eceff1; /* デフォルト：優しいグレー */
+    color: #546e7a;
+    box-shadow: 0 4px 0 #b0bec5;
+    margin: 10px;
+    font-family: 'Zen Maru Gothic', sans-serif;
+    transition: all 0.2s;
+  }
+  
+  /* ホバー時の動き */
+  .modal-box button:not(.btn-option):hover {
+    transform: translateY(-3px);
+    background: #cfd8dc;
+    box-shadow: 0 6px 0 #b0bec5;
+  }
+  /* クリック時の動き */
+  .modal-box button:not(.btn-option):active {
+    transform: translateY(3px);
+    box-shadow: 0 2px 0 #b0bec5;
+  }
+  
+  /* 「つたえる」「はい」などのポジティブアクション */
+  .modal-box button.btn-share {
+    background: #ffb74d; /* オレンジ */
+    color: #fff;
+    box-shadow: 0 4px 0 #f57c00;
+  }
+  .modal-box button.btn-share:hover { background: #ffe0b2; box-shadow: 0 6px 0 #f57c00; }
+  
+  /* 「ひみつ」などのネガティブアクション */
+  .modal-box button.btn-secret {
+    background: #90a4ae; /* 落ち着いたブルーグレー */
+    color: #fff;
+    box-shadow: 0 4px 0 #607d8b;
+  }
+  .modal-box button.btn-secret:hover { background: #b0bec5; box-shadow: 0 6px 0 #607d8b; }
+
+
+  /* ▼ 【修正】終了画面のレイアウトと装飾 ▼ */
+  .split-modal { 
+    display: flex; 
+    flex-direction: row; /* 横並び */
+    gap: 40px; 
+    text-align: left; 
+    width: 100%;
+    align-items: stretch; /* 高さを揃える */
+  }
+  
+  .modal-left { 
+    flex: 1; 
+    border-right: 3px dashed #b3e5fc; /* 水色の点線で区切る */
+    padding-right: 40px;
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .modal-right { 
+    flex: 1; 
+    display: flex; 
+    flex-direction: column; 
+    justify-content: center; 
+    align-items: center;
+    padding-left: 10px;
+  }
+  
+  /* テキストエリアと入力欄（共通の温かいデザイン） */
+  textarea,
+  .memo-area input[type="text"] { 
+    width: 100%; 
+    border: 3px solid #ffe0b2; /* 薄いオレンジの枠 */
+    border-radius: 15px; 
+    padding: 15px; 
+    font-size: 1.1rem; 
+    line-height: 1.6; 
+    background: #fff8e1; /* クリーム色の背景 */
+    box-shadow: inset 0 2px 5px rgba(0,0,0,0.05); /* 少し凹ませる */
+    resize: none; /* サイズ固定 */
+    font-family: 'Zen Maru Gothic', sans-serif;
+    color: #5d4037;
+    box-sizing: border-box;
+  }
+  
+  /* フォーカス時のスタイル */
+  textarea:focus,
+  .memo-area input[type="text"]:focus {
+    border-color: #ffb74d; /* 濃いオレンジ */
+    outline: none;
+    background: #fff;
+  }
+  
+  /* AIまとめのテキストエリアは少し特別に */
+  #end-summary-text {
+     border: 3px dashed #b3e5fc; /* 水色の点線 */
+     background: #e1f5fe; /* 薄い水色の背景 */
+     height: 150px; /* 高さを少し広げる */
+  }
+
+  /* スマホ対応：画面が狭いときは縦並びに戻す */
+  @media (max-width: 768px) {
+    .split-modal {
+      flex-direction: column;
+      gap: 30px;
+    }
+    .modal-left {
+      border-right: none;
+      border-bottom: 3px dashed #b3e5fc;
+      padding-right: 0;
+      padding-bottom: 30px;
+    }
+    .modal-right {
+      padding-left: 0;
+    }
+  }
+  
+  /* アニメーション定義 */
+  @keyframes popIn {
+    from { transform: scale(0.8) translateY(20px); opacity: 0; }
+    to { transform: scale(1) translateY(0); opacity: 1; }
+  }
+  @keyframes float {
+    0%, 100% { transform: translateY(0) rotate(2deg); }
+    50% { transform: translateY(-15px) rotate(-2deg); }
+  }
+  
+  .loader { font-size: 1.2rem; color: #888; margin-top: 20px; font-weight: bold; letter-spacing: 2px; }
+  .spinner-mini {
+    display: inline-block; width: 15px; height: 15px;
+    border: 3px solid #ccc; border-top-color: #29b6f6;
+    border-radius: 50%; animation: spin 1s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  
+/* =========================================
+     ▼ 修正追加: 「そうだんにっき」カードデザイン
+     テーマ: 日記の1ページ（修正版）
+   ========================================= */
+  
+  /* カード全体：傾き・アニメーションを削除し、落ち着いたノート風に */
+  .record-card {
+    background: #fff;
+    /* 紙の質感を出す微細なグラデーション */
+    background-image: linear-gradient(to bottom, #fffcf5 0%, #fff 100%);
+    border-radius: 15px; /* 角丸を少し控えめに統一 */
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05); /* 影も控えめに */
+    padding: 25px;
+    margin-bottom: 30px;
+    position: relative;
+    border-left: 8px solid transparent; /* JSで色を指定 */
+    font-family: 'Zen Maru Gothic', sans-serif;
+    /* transition, hover transform は削除 */
+  }
+
+  /* ヘッダー：日付とスタンプ */
+  .record-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center; /* 中央揃えに */
+    margin-bottom: 15px;
+    border-bottom: 2px dashed #e0e0e0;
+    padding-bottom: 10px;
+  }
+
+  .record-date {
+    font-size: 1.3rem;
+    font-weight: bold;
+    color: #5d4037;
+    background: #fff8e1;
+    padding: 5px 15px;
+    border-radius: 20px;
+    display: inline-block;
+  }
+
+  /* スタンプ風デザイン（傾きなし・水平配置） */
+  .record-stamp {
+    font-size: 0.9rem;
+    font-weight: bold;
+    padding: 5px 15px;
+    border-radius: 20px; /* 四角すぎないように丸く */
+    text-align: center;
+    /* transform: rotate(...) を削除 */
+    box-shadow: none; /* インク溜まり風の枠線もシンプルに */
+    min-width: 120px;
+  }
+  
+  /* 先生に「つたえた」 */
+  .stamp-sent {
+    color: #e65100;
+    border: 2px solid #ffcc80;
+    background-color: #fff3e0;
+  }
+  
+  /* 「ひみつ」 */
+  .stamp-secret {
+    color: #546e7a;
+    border: 2px solid #cfd8dc;
+    background-color: #eceff1;
+  }
+
+  /* きもちの変化エリア */
+  .record-feeling-flow {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    background: #f1f8e9;
+    padding: 10px 20px;
+    border-radius: 50px;
+    margin-bottom: 15px;
+    width: fit-content;
+  }
+  
+  .feel-tag {
+    font-weight: bold;
+    color: #555;
+  }
+  
+  .feel-arrow {
+    color: #81c784;
+    font-size: 1.2rem;
+  }
+
+  /* 要約テキスト */
+  .record-summary {
+    font-size: 1.1rem;
+    line-height: 1.8;
+    color: #444;
+    margin-bottom: 20px;
+    padding: 0 10px;
+  }
+
+  /* メモエリア */
+  .record-memo-container {
+    background: #fff;
+    border: 3px solid #b3e5fc;
+    border-radius: 15px;
+    padding: 8px 12px; /* 余白を調整 */
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+  
+  .record-memo-input {
+    flex: 1; /* 残りの幅をすべて使う */
+    border: none;
+    background: transparent;
+    font-size: 1rem;
+    color: #555;
+    outline: none;
+    font-family: inherit;
+  }
+  
+  /* 保存ボタン（サイズ固定・正円） */
+  .btn-memo-save {
+    width: 40px !important;
+    height: 40px !important;
+    min-width: 40px; /* 縮小防止 */
+    border-radius: 50%;
+    padding: 0;
+    background: #b3e5fc;
+    border: 2px solid #fff;
+    box-shadow: 0 2px 0 #81d4fa;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0; /* フレックスボックスでの縮小を防止 */
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: transform 0.1s;
+  }
+  .btn-memo-save:active {
+    transform: translateY(2px);
+    box-shadow: none;
+  }
+
+  /* 解決ボタンエリア */
+  .record-footer {
+    text-align: right;
+    margin-top: 15px;
+  }
+  .btn-solve-toggle {
+    font-size: 0.9rem;
+    padding: 8px 15px;
+    border-radius: 20px;
+    background: #eceff1;
+    color: #78909c;
+    border: 2px solid #cfd8dc;
+    cursor: pointer;
+  }
+  .btn-solve-toggle.solved {
+    background: #e8f5e9;
+    color: #2e7d32;
+    border-color: #a5d6a7;
+  }
+  .btn-solve-toggle.solved::before {
+    content: '💮 ';
+  }
+
+  /* ▼ 追加修正: 「もどる」ボタンのデザイン（温かみのあるスタイル） */
+  .panel-header .btn-small {
+    background: #ffe0b2; /* 優しいオレンジベージュ */
+    color: #5d4037;
+    border: 2px solid #fff;
+    box-shadow: 0 3px 0 #ffcc80;
+    padding: 8px 20px;
+    border-radius: 20px;
+    font-weight: bold;
+    font-family: 'Zen Maru Gothic', sans-serif;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: transform 0.1s;
+  }
+  .panel-header .btn-small:hover {
+    background: #fff3e0;
+    transform: translateY(-2px);
+  }
+  .panel-header .btn-small:active {
+    transform: translateY(2px);
+    box-shadow: 0 1px 0 #ffcc80;
+  }
+  
+  .settings-box {
+    display: flex;
+    flex-direction: row; /* 横並びにする */
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    /* ...既存の背景色などの指定はそのまま... */
+  }
+
+  /* グループごとの装飾（任意） */
+  .setting-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .setting-label {
+    font-weight: bold;
+    color: #5d4037;
+    margin-right: 5px;
+    font-size: 0.9rem;
+  }
+
+  .setting-divider {
+    width: 1px;
+    height: 25px;
+    background: #ccc; /* 薄い区切り線 */
+  }
+</style>

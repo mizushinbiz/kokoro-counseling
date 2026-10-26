@@ -1,0 +1,11 @@
+# OS files
+.DS_Store
+Thumbs.db
+
+# clasp credentials & local settings
+.clasprc.json
+.clasp.json
+
+# Environment & secrets
+.env
+*.local

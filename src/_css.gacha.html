@@ -1,0 +1,340 @@
+<style>
+  /* ▼ ガチャモーダル全体 ▼ */
+  #modal-gacha-overlay {
+    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+    background: rgba(0, 0, 0, 0.85);
+    z-index: 10000;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-family: 'Zen Maru Gothic', sans-serif;
+  }
+
+  /* ローディング演出 */
+  .gacha-loading {
+    font-size: 1.5rem;
+    animation: pulse 1s infinite alternate;
+  }
+
+  /* ▼ ガチャ結果カード（横並びレイアウト修正） ▼ */
+  .gacha-result-card {
+    background: #fff;
+    border-radius: 20px;
+    padding: 25px;
+    width: 90%;
+    max-width: 600px; /* 横並びにするので幅を広げる */
+    color: #5d4037;
+    box-shadow: 0 0 50px rgba(255, 255, 200, 0.5);
+    transform: scale(0);
+    transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    
+    /* ★ここが重要：Flexboxで左右に分ける */
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 20px;
+    text-align: left; /* 左寄せにする */
+  }
+
+  /* スマホ対応：画面が狭いときは縦並びに戻す */
+  @media (max-width: 600px) {
+    .gacha-result-card {
+      flex-direction: column;
+      text-align: center;
+    }
+  }
+
+  .gacha-result-card.show {
+    transform: scale(1);
+  }
+
+  /* 左カラム：画像エリア */
+  .gacha-col-left {
+    flex: 1; /* 1の割合 */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .gacha-image {
+    width: 100%;
+    max-width: 160px; /* 画像が大きくなりすぎないように */
+    height: auto;
+    object-fit: contain;
+    border-radius: 10px;
+    border: 4px solid #ffe082;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+  }
+
+  /* 右カラム：情報エリア */
+  .gacha-col-right {
+    flex: 1.5; /* 画像より少し広く */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  /* ✨ NEW! バッジ */
+  .gacha-new-badge {
+    display: inline-block;
+    align-self: flex-start;
+    background: linear-gradient(135deg, #ff4081, #ff9100);
+    color: #fff;
+    font-size: 0.95rem;
+    font-weight: bold;
+    padding: 4px 14px;
+    border-radius: 20px;
+    box-shadow: 0 3px 6px rgba(255, 64, 129, 0.4);
+    animation: popBounce 0.6s ease-out;
+    margin-bottom: 6px;
+  }
+  @media (max-width: 600px) {
+    .gacha-new-badge {
+      align-self: center;
+    }
+  }
+  @keyframes popBounce {
+    0% { transform: scale(0.3); opacity: 0; }
+    60% { transform: scale(1.15); opacity: 1; }
+    100% { transform: scale(1); }
+  }
+
+  .gacha-rarity {
+    font-size: 2rem;
+    font-weight: bold;
+    color: #ff9800;
+    margin-bottom: 5px;
+    text-shadow: 1px 1px 0 #fff;
+  }
+  .gacha-no {
+    font-size: 0.9rem;
+    color: #888;
+    margin-bottom: 10px;
+  }
+  .gacha-action {
+    font-size: 1.4rem;
+    font-weight: bold;
+    margin: 10px 0;
+    color: #d84315;
+    line-height: 1.4;
+    border-bottom: 2px dashed #eee;
+    padding-bottom: 10px;
+  }
+  .gacha-comment {
+    font-size: 1rem;
+    color: #555;
+    background: #f5f5f5;
+    padding: 12px;
+    border-radius: 8px;
+    margin-bottom: 15px;
+    line-height: 1.5;
+  }
+
+  /* ▼ コレクション一覧画面（日記画面と完全統一） ▼ */
+  #view-collection {
+    display: none;
+    width: 100%;
+    height: 100%;
+    
+    /* 背景色は指定せず、アプリ共通（bodyやmain）の背景を透過させる */
+    background: transparent; 
+    
+    /* ヘッダーと中身を縦に並べる設定 */
+    flex-direction: column;
+    
+    /* パディングはここには設定せず、内部要素に任せる */
+    padding: 0;
+    box-sizing: border-box;
+
+    /* 重要：重なり順や固定配置の指定をリセット */
+    position: static;
+    z-index: auto;
+  }
+
+  /* activeクラスで表示（Flex指定を維持） */
+  #view-collection.active {
+    display: flex; 
+  }
+
+  /* ヘッダーエリア（日記画面のヘッダーを模倣） */
+  .collection-header {
+    padding: 15px 30px;
+    background: transparent;
+    border-bottom: 2px dashed rgba(0,0,0,0.1);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+    /* ▼ 追加修正: 「もどる」ボタンのデザイン（温かみのあるスタイル） */
+  .collection-header .btn-small {
+    background: #ffe0b2; /* 優しいオレンジベージュ */
+    color: #5d4037;
+    border: 2px solid #fff;
+    box-shadow: 0 3px 0 #ffcc80;
+    padding: 8px 20px;
+    border-radius: 20px;
+    font-weight: bold;
+    font-family: 'Zen Maru Gothic', sans-serif;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: transform 0.1s;
+  }
+  .collection-header .btn-small:hover {
+    background: #fff3e0;
+    transform: translateY(-2px);
+  }
+  .collection-header .btn-small:active {
+    transform: translateY(2px);
+    box-shadow: 0 1px 0 #ffcc80;
+  }
+
+
+
+  /* タイトル文字 */
+  .collection-header h2 {
+    margin: 0;
+    font-size: 1.5rem;
+    color: #5d4037;
+    font-family: 'Zen Maru Gothic', sans-serif;
+  }
+
+  /* スクロールする中身のエリア */
+  .collection-grid {
+    flex: 1; /* 残りの高さを全部使う */
+    overflow-y: auto; /* ここだけスクロールさせる */
+    padding: 20px;
+    
+    /* グリッド設定 */
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    max-width: 1000px;
+    margin: 0 auto;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  /* スマホ対応 */
+  @media (max-width: 700px) {
+    .collection-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  /* カード個別のスタイル（内部で横並び） */
+  .collection-item {
+    background: #fff;
+    border: 2px solid #eee;
+    border-radius: 12px;
+    padding: 10px;
+    
+    /* ★ここが重要：アイテム内で画像を左、説明を右にする */
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 15px;
+    text-align: left;
+    height: 100%; /* 高さを揃える */
+  }
+  
+  /* 左側：画像 */
+  .col-img-wrapper {
+    flex: 0 0 120px; /* 固定幅 */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  .col-img-thumb {
+    width: 100%;
+    height: 120px;
+    object-fit: contain; /* 枠に収める */
+    border-radius: 8px;
+    border: 1px solid #eee;
+  }
+  
+  /* 未取得アイコン */
+  .col-locked-icon {
+    font-size: 3rem;
+    color: #ccc;
+    line-height: 120px;
+    text-align: center;
+    width: 100%;
+    background: #f0f0f0;
+    border-radius: 8px;
+  }
+
+  /* ▼ 右側：テキスト情報（日記風デザインに合わせて調整） ▼ */
+  .col-info-wrapper {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    /* 日記と同じフォント・色ベースに統一 */
+    font-family: 'Zen Maru Gothic', sans-serif;
+    color: #5d4037; 
+  }
+
+  /* ナンバー */
+  .col-meta-no { 
+    font-size: 0.95rem; /* 少し大きく */
+    font-weight: bold;  /* 太く */
+    color: #8d6e63;     /* 薄いグレーをやめて、やわらかい茶色に */
+    margin-bottom: 4px;
+  }
+
+  /* レアリティ */
+  .col-rarity { 
+    font-weight: 900;   /* 極太に */
+    color: #ff9800;     /* 鮮やかなオレンジ */
+    font-size: 1.1rem; 
+    margin-bottom: 4px;
+    text-shadow: 1px 1px 0 #fff; /* 少し立体的に */
+  }
+
+  /* アクション（タイトル） */
+  .col-action { 
+    font-weight: bold; 
+    color: #5d4037;     /* 濃い茶色ではっきり */
+    font-size: 1.3rem;  /* 日記の見出しと同じくらい大きく */
+    line-height: 1.4; 
+    margin-bottom: 8px;
+    
+    /* 日記カードにあるような「点線の下線」を追加して可愛く */
+    border-bottom: 3px dashed #ffe082;
+    padding-bottom: 6px;
+  }
+
+  /* コメント（本文） */
+  .col-comment { 
+    font-size: 1.05rem; /* 本文サイズに */
+    color: #5d4037;     /* 薄くしない */
+    line-height: 1.6;   /* 行間を広げて読みやすく */
+    font-weight: 500;   /* 少し太めに */
+  }
+
+  /* 未取得時のテキスト調整 */
+  .collection-item.locked .col-action,
+  .collection-item.locked .col-rarity {
+    color: #aaa !important; /* 未取得はグレーアウト */
+    text-shadow: none;
+    border-bottom: 2px dashed #ddd;
+  }
+
+  /* アニメーション系 */
+  @keyframes pulse {
+    from { opacity: 0.6; transform: scale(0.98); }
+    to { opacity: 1; transform: scale(1.02); }
+  }
+  .sparkle {
+    position: absolute; width: 10px; height: 10px;
+    background: gold; border-radius: 50%;
+    animation: sparkle-anim 1s linear forwards;
+  }
+  @keyframes sparkle-anim {
+    0% { transform: translate(0, 0) scale(1); opacity: 1; }
+    100% { transform: translate(var(--tx), var(--ty)) scale(0); opacity: 0; }
+  }
+</style>

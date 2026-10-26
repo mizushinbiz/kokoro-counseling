@@ -1,0 +1,26 @@
+<!-- ガチャ演出・結果表示モーダル -->
+<div id="modal-gacha-overlay">
+  <div id="gacha-loading-msg" class="gacha-loading">
+    🎁 まいにちがぼうけん！ きょうのラッキーアクションは...
+  </div>
+  
+  <div id="gacha-result-container" class="gacha-result-card">
+    
+    <div class="gacha-col-left">
+      <img id="res-img" class="gacha-image" src="" alt="card image">
+    </div>
+
+    <div class="gacha-col-right">
+      <div id="res-new-badge" class="gacha-new-badge" style="display:none;">✨ あたらしく ゲット！ ✨</div>
+      <div class="gacha-rarity" id="res-rarity">SR</div>
+      <div class="gacha-no">No.<span id="res-no"></span></div>
+      <div class="gacha-action" id="res-action">ラッキーアクション</div>
+      <div class="gacha-comment" id="res-comment">コメント</div>
+      
+      <div style="margin-top: 15px; text-align: center; width: 100%;">
+        <button class="btn-agree" onclick="GachaLogic.closeGacha()" style="padding: 10px 40px; font-size: 1.2rem;">OK！</button>
+      </div>
+    </div>
+
+  </div>
+</div>

@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>こころの相談室 - システム管理・設定</title>
+  <style>
+    :root {
+      --primary: #4f46e5;
+      --primary-hover: #4338ca;
+      --bg-color: #f8fafc;
+      --card-bg: #ffffff;
+      --text-main: #1e293b;
+      --text-muted: #64748b;
+      --border-color: #e2e8f0;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --radius: 12px;
+      --shadow: 0 4px 6px -1px rgba(0,0,0,0.07), 0 2px 4px -2px rgba(0,0,0,0.05);
+      --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.08), 0 4px 6px -4px rgba(0,0,0,0.04);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+    body { background-color: var(--bg-color); color: var(--text-main); min-height: 100vh; display: flex; flex-direction: column; }
+
+    /* ヘッダー */
+    header {
+      background: white;
+      border-bottom: 1px solid var(--border-color);
+      padding: 16px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+    .header-title { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 1.15rem; color: #1e1b4b; }
+    .header-badge { background: #e0e7ff; color: var(--primary); font-size: 0.75rem; padding: 4px 10px; border-radius: 9999px; font-weight: 600; }
+    .header-actions { display: flex; gap: 12px; align-items: center; }
+
+    /* ボタン */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 9px 18px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s;
+      text-decoration: none;
+    }
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-primary:hover { background: var(--primary-hover); }
+    .btn-secondary { background: white; border: 1px solid var(--border-color); color: var(--text-main); }
+    .btn-secondary:hover { background: #f1f5f9; }
+    .btn-success { background: var(--success); color: white; }
+    .btn-success:hover { background: #059669; }
+    .btn-danger { background: var(--danger); color: white; }
+    .btn-danger:hover { background: #dc2626; }
+    .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    /* メインコンテナ */
+    .container { max-width: 900px; width: 100%; margin: 32px auto; padding: 0 20px; flex: 1; }
+
+    /* 認証画面 */
+    #authView {
+      max-width: 440px;
+      margin: 80px auto;
+      background: white;
+      padding: 36px 32px;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-lg);
+      border: 1px solid var(--border-color);
+      text-align: center;
+    }
+    .auth-icon { font-size: 3rem; margin-bottom: 16px; }
+    .auth-title { font-size: 1.3rem; margin-bottom: 8px; font-weight: 700; color: #1e1b4b; }
+    .auth-subtitle { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 24px; line-height: 1.5; }
+
+    /* ダッシュボード */
+    #dashboardView { display: none; }
+    .nav-tabs { display: flex; gap: 8px; border-bottom: 1px solid var(--border-color); margin-bottom: 24px; }
+    .tab-btn {
+      padding: 10px 18px;
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      cursor: pointer;
+    }
+    .tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); }
+
+    /* カード */
+    .card {
+      background: white;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      border: 1px solid var(--border-color);
+      padding: 28px;
+      margin-bottom: 24px;
+    }
+    .card-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 6px; display: flex; align-items: center; gap: 8px; color: #1e1b4b; }
+    .card-desc { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 20px; }
+
+    /* フォーム要素 */
+    .form-group { margin-bottom: 20px; }
+    .form-label { display: block; font-size: 0.88rem; font-weight: 600; margin-bottom: 6px; }
+    .form-label .badge-req { background: #fee2e2; color: #b91c1c; font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; margin-left: 6px; }
+    .form-label .badge-opt { background: #f1f5f9; color: var(--text-muted); font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; margin-left: 6px; }
+    .form-input {
+      width: 100%;
+      padding: 10px 14px;
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+      font-size: 0.92rem;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .form-input:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
+    }
+    .form-hint { font-size: 0.8rem; color: var(--text-muted); margin-top: 5px; line-height: 1.4; }
+    .form-hint code { background: #f1f5f9; padding: 2px 5px; border-radius: 4px; font-family: monospace; }
+
+    /* アラート・メッセージ */
+    .alert {
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-size: 0.88rem;
+      margin-bottom: 20px;
+      display: none;
+    }
+    .alert-success { background: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46; }
+    .alert-error { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; }
+    .alert-info { background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; }
+
+    /* 接続診断結果テーブル */
+    .diag-table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+    .diag-table th, .diag-table td { padding: 12px 14px; text-align: left; border-bottom: 1px solid var(--border-color); font-size: 0.88rem; }
+    .diag-table th { background: #f8fafc; font-weight: 600; color: var(--text-muted); }
+    .status-badge { display: inline-block; padding: 3px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; }
+    .status-ok { background: #dcfce7; color: #15803d; }
+    .status-warn { background: #fef3c7; color: #b45309; }
+    .status-ng { background: #fee2e2; color: #b91c1c; }
+
+    /* ガイドボックス */
+    .guide-box {
+      background: #f8fafc;
+      border-left: 4px solid var(--primary);
+      padding: 18px;
+      border-radius: 0 8px 8px 0;
+      font-size: 0.88rem;
+      line-height: 1.6;
+      margin-top: 16px;
+    }
+    .guide-box ol { padding-left: 20px; margin-top: 8px; }
+
+    /* ローディングスピナー */
+    .spinner {
+      border: 3px solid rgba(255,255,255,0.3);
+      border-radius: 50%;
+      border-top: 3px solid white;
+      width: 16px;
+      height: 16px;
+      animation: spin 0.8s linear infinite;
+      display: inline-block;
+    }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+    /* フッター */
+    footer { text-align: center; padding: 24px; font-size: 0.8rem; color: var(--text-muted); border-top: 1px solid var(--border-color); background: white; }
+  </style>
+</head>
+<body>
+
+  <!-- ヘッダー -->
+  <header>
+    <div class="header-title">
+      <span>🌱 こころの相談室</span>
+      <span class="header-badge">システム管理・初期設定</span>
+    </div>
+    <div class="header-actions">
+      <a href="<?= ScriptApp.getService().getUrl() ?>" class="btn btn-secondary" target="_blank">相談室画面を開く ↗</a>
+      <button id="logoutBtn" class="btn btn-secondary" style="display: none;" onclick="logout()">ログアウト</button>
+    </div>
+  </header>
+
+  <div class="container">
+
+    <!-- 1. ログイン認証画面 -->
+    <div id="authView">
+      <div class="auth-icon">🔒</div>
+      <h2 class="auth-title">管理者ログイン</h2>
+      <p class="auth-subtitle">学校の初期設定や各種IDの変更を行うには、管理者パスワードを入力してください。</p>
+      
+      <div id="authAlert" class="alert alert-error"></div>
+
+      <div class="form-group" style="text-align: left;">
+        <label class="form-label" for="adminPassword">管理者パスワード</label>
+        <input type="password" id="adminPassword" class="form-input" placeholder="パスワードを入力" onkeydown="if(event.key==='Enter') login()">
+        <p class="form-hint">初期パスワードは <code>KokoroAdmin2026!</code> です。</p>
+      </div>
+
+      <button id="loginBtn" class="btn btn-primary" style="width: 100%;" onclick="login()">
+        ログイン
+      </button>
+
+      <div style="margin-top: 24px; text-align: left; font-size: 0.8rem; color: var(--text-muted); background: #f1f5f9; padding: 12px; border-radius: 8px; line-height: 1.5;">
+        💡 <strong>パスワードを忘れた場合：</strong><br>
+        GASエディタで関数 <code>resetAdminPassword</code> を実行すると初期パスワード（<code>KokoroAdmin2026!</code>）に安全に戻せます。
+      </div>
+    </div>
+
+    <!-- 2. 管理ダッシュボード画面 -->
+    <div id="dashboardView">
+
+      <!-- タブ切り替え -->
+      <div class="nav-tabs">
+        <button class="tab-btn active" onclick="switchTab('tabSettings')">⚙️ システム設定</button>
+        <button class="tab-btn" onclick="switchTab('tabDiagnostics')">🔍 接続テスト・診断</button>
+        <button class="tab-btn" onclick="switchTab('tabSecurity')">🔒 パスワード変更</button>
+        <button class="tab-btn" onclick="switchTab('tabHelp')">❓ フォルダ配置・運用ガイド</button>
+      </div>
+
+      <!-- グローバルメッセージアラート -->
+      <div id="dashAlert" class="alert"></div>
+
+      <!-- タブ1: システム設定 -->
+      <div id="tabSettings" class="tab-content">
+        <div class="card">
+          <div class="card-title">📁 Google Drive / スプレッドシート連携設定</div>
+          <div class="card-desc">児童・教職員が利用する各種フォルダおよびスプレッドシートのIDを設定します。</div>
+
+          <form id="settingsForm" onsubmit="event.preventDefault(); saveSettings();">
+
+            <!-- 相談記録保管庫 -->
+            <div class="form-group">
+              <label class="form-label">
+                ① 相談記録保管庫フォルダID
+                <span class="badge-req">必須</span>
+              </label>
+              <input type="text" id="cfg_DESIGNER_FOLDER_ID" class="form-input" required placeholder="例: 1AbCdEfGhIjKlMnOpQrStUvWxYz_1234">
+              <p class="form-hint">
+                児童ごとの暗号化された相談記録シートが格納されるフォルダのIDです。<br>
+                URL: <code>https://drive.google.com/drive/folders/<strong>[この部分の文字列]</strong></code>
+              </p>
+            </div>
+
+            <!-- アバター画像フォルダ -->
+            <div class="form-group">
+              <label class="form-label">
+                ② アバター画像フォルダID
+                <span class="badge-req">必須</span>
+              </label>
+              <input type="text" id="cfg_CHAR_IMAGE_FOLDER_ID" class="form-input" required placeholder="例: 1AbCdEfGhIjKlMnOpQrStUvWxYz_5678">
+              <p class="form-hint">
+                AIアバター（PNG画像）が保存されているフォルダIDです。<br>
+                ※全校児童および教職員が閲覧可能な「校内共有フォルダ」内に作成してください。
+              </p>
+            </div>
+
+            <!-- 教師用管理簿スプレッドシート -->
+            <div class="form-group">
+              <label class="form-label">
+                ③ 教師用管理簿スプレッドシートID
+                <span class="badge-req">必須</span>
+              </label>
+              <input type="text" id="cfg_TEACHER_SHEET_ID" class="form-input" required placeholder="例: 1AbCdEfGhIjKlMnOpQrStUvWxYz_Sheet">
+              <p class="form-hint">
+                「児童情報」「児童より」シートが含まれる教師用マスタースプレッドシートのIDです。<br>
+                URL: <code>https://docs.google.com/spreadsheets/d/<strong>[この部分の文字列]</strong>/edit</code>
+              </p>
+            </div>
+
+            <!-- ガチャ画像フォルダ -->
+            <div class="form-group">
+              <label class="form-label">
+                ④ ガチャ画像フォルダID
+                <span class="badge-opt">任意（ガチャ利用時）</span>
+              </label>
+              <input type="text" id="cfg_GACHA_FOLDER_ID" class="form-input" placeholder="例: 1AbCdEfGhIjKlMnOpQrStUvWxYz_Gacha">
+              <p class="form-hint">
+                「スーパーレア」「レア」「コモン」フォルダが格納されたガチャ画像用フォルダIDです。
+              </p>
+            </div>
+
+            <!-- ガチャマスタースプレッドシート -->
+            <div class="form-group">
+              <label class="form-label">
+                ⑤ ガチャマスタースプレッドシートID
+                <span class="badge-opt">任意（ガチャ利用時）</span>
+              </label>
+              <input type="text" id="cfg_GACHA_SHEET_ID" class="form-input" placeholder="例: 1AbCdEfGhIjKlMnOpQrStUvWxYz_GMaster">
+              <p class="form-hint">
+                ラッキーアクション等のカードデータが登録されたガチャマスターシートのIDです。
+              </p>
+            </div>
+
+            <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 28px 0;">
+
+            <div class="card-title">🤖 AI・通知設定</div>
+            <div class="card-desc">Gemini APIおよびGoogle Chat Webhook通知を設定します。</div>
+
+            <!-- Gemini APIキー -->
+            <div class="form-group">
+              <label class="form-label">
+                ⑥ Gemini APIキー
+                <span class="badge-req">必須</span>
+              </label>
+              <input type="password" id="cfg_GEMINI_API_KEY" class="form-input" required placeholder="AI Studioで取得したAPIキー（AIzaSy...）">
+              <p class="form-hint">
+                Google AI Studio (<a href="https://aistudio.google.com/app/apikey" target="_blank">aistudio.google.com</a>) から取得したAPIキーを入力してください。
+              </p>
+            </div>
+
+            <!-- Gemini モデル -->
+            <div class="form-group">
+              <label class="form-label">
+                ⑦ Gemini モデル
+                <span class="badge-req">必須</span>
+              </label>
+              <div style="display: flex; gap: 8px;">
+                <input type="text" id="cfg_GEMINI_MODEL" class="form-input" list="geminiModelOptions" placeholder="例: gemini-2.5-flash-lite" required>
+                <button type="button" class="btn btn-secondary" onclick="document.getElementById('cfg_GEMINI_MODEL').value='gemini-2.5-flash-lite'" style="white-space: nowrap; font-size: 0.85rem;">
+                  標準をセット
+                </button>
+              </div>
+              <datalist id="geminiModelOptions">
+                <option value="gemini-2.5-flash-lite">gemini-2.5-flash-lite（標準・推奨・高速）</option>
+                <option value="gemini-2.5-flash">gemini-2.5-flash（高性能・高精度）</option>
+                <option value="gemini-1.5-flash">gemini-1.5-flash（安定版）</option>
+                <option value="gemini-1.5-pro">gemini-1.5-pro（高精度・推論）</option>
+              </datalist>
+              <p class="form-hint">プルダウンから候補を選択するか、任意のモデル名を手入力できます（「標準をセット」ボタンでいつでも推奨モデルを設定可能）。</p>
+            </div>
+
+            <!-- Google Chat Webhook URL -->
+            <div class="form-group">
+              <label class="form-label">
+                ⑧ Google Chat Webhook URL
+                <span class="badge-opt">任意（SOS通知利用時）</span>
+              </label>
+              <input type="password" id="cfg_CHAT_WEBHOOK" class="form-input" placeholder="https://chat.googleapis.com/v1/spaces/...">
+              <p class="form-hint">
+                児童が「せんせいに伝える」を選択した際、職員室のGoogle Chatスペースへ即座に通知を届けるWebhook URLです。
+              </p>
+            </div>
+
+            <div style="margin-top: 32px; display: flex; gap: 12px;">
+              <button type="submit" id="saveBtn" class="btn btn-primary" style="padding: 12px 28px; font-size: 1rem;">
+                💾 設定を保存する
+              </button>
+              <button type="button" class="btn btn-secondary" onclick="loadSettings()">
+                🔄 最新状態を再読込
+              </button>
+            </div>
+
+          </form>
+        </div>
+      </div>
+
+      <!-- タブ2: 接続診断テスト -->
+      <div id="tabDiagnostics" class="tab-content" style="display: none;">
+        <div class="card">
+          <div class="card-title">🔍 接続・権限診断テスト</div>
+          <div class="card-desc">
+            登録された各フォルダ・シートが存在し、アクセス権限が正常に設定されているか即座に診断します。
+          </div>
+
+          <button id="testBtn" class="btn btn-success" onclick="runDiagnostics()">
+            🚀 診断テストを実行する
+          </button>
+
+          <div id="diagProgress" style="display: none; margin-top: 20px; color: var(--text-muted); font-size: 0.9rem;">
+            <div class="spinner" style="border-top-color: var(--primary); border-color: rgba(79,70,229,0.2); vertical-align: middle; margin-right: 8px;"></div>
+            Google DriveおよびGemini APIと通信テスト中...
+          </div>
+
+          <table id="diagTable" class="diag-table" style="display: none;">
+            <thead>
+              <tr>
+                <th style="width: 28%;">対象リソース</th>
+                <th style="width: 14%;">状態</th>
+                <th style="width: 58%;">詳細・確認結果</th>
+              </tr>
+            </thead>
+            <tbody id="diagTbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- タブ3: パスワード変更 -->
+      <div id="tabSecurity" class="tab-content" style="display: none;">
+        <div class="card">
+          <div class="card-title">🔒 管理者パスワードの変更</div>
+          <div class="card-desc">
+            初期パスワード（<code>KokoroAdmin2026!</code>）から、学校独自のパスワードに変更できます。
+          </div>
+
+          <div id="pwdAlert" class="alert"></div>
+
+          <form id="pwdForm" onsubmit="event.preventDefault(); changePassword();" style="max-width: 480px;">
+            <div class="form-group">
+              <label class="form-label">現在のパスワード</label>
+              <input type="password" id="oldPassword" class="form-input" required>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">新しいパスワード (6文字以上)</label>
+              <input type="password" id="newPassword" class="form-input" required minlength="6">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">新しいパスワード (確認用)</label>
+              <input type="password" id="newPasswordConfirm" class="form-input" required minlength="6">
+            </div>
+
+            <button type="submit" id="pwdBtn" class="btn btn-primary" style="margin-top: 8px;">
+              パスワードを変更する
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <!-- タブ4: フォルダ配置・運用ガイド -->
+      <div id="tabHelp" class="tab-content" style="display: none;">
+        <div class="card">
+          <div class="card-title">❓ フォルダ配置・運用ガイド</div>
+          
+          <div class="guide-box">
+            <strong>🔑 パスワードを忘れた場合の安全なリカバリー方法</strong>
+            <p style="margin-top: 6px;">
+              学校の担当者がパスワードを忘れたり、年度更新で後任に引き継ぐ際は、<strong>Google Drive上でGASを開ける先生</strong>が以下の手順で復旧できます：
+            </p>
+            <ol>
+              <li>このGASプロジェクト（Apps Scriptエディタ）を開きます。</li>
+              <li>左側メニューのファイル一覧から <code>AdminService.js</code> を開きます。</li>
+              <li>上部の関数実行プルダウンから <code>resetAdminPassword</code> を選択し、<strong>「実行」</strong>をクリックします。</li>
+              <li>これでパスワードが初期値（<code>KokoroAdmin2026!</code>）に安全にリセットされます。</li>
+            </ol>
+          </div>
+
+          <div class="guide-box" style="margin-top: 20px;">
+            <strong>🌐 画像素材フォルダの校内共有設定ルール</strong>
+            <p style="margin-top: 6px;">
+              アバター画像やガチャ画像が児童の端末に正しく表示されるためには、画像フォルダが<strong>学校ドメイン全体（全児童・全教職員）に「閲覧者」として共有</strong>されている必要があります。
+            </p>
+            <ol>
+              <li>Google Driveで画像フォルダを右クリック ➔「共有」➔「共有」を選択します。</li>
+              <li>「一般的なアクセス」を<strong>「[学校・自治体の組織名]」の「閲覧者」</strong>に設定します。</li>
+              <li>「リンクをコピー」し、ID部分を本管理画面の「システム設定」に貼り付けてください。</li>
+            </ol>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <footer>
+    こころの相談室 — 自治体・学校向けセキュアWeb相談システム
+  </footer>
+
+  <script>
+    // 状態管理
+    let currentPassword = '';
+
+    // ==========================================
+    //  タブ切り替え
+    // ==========================================
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
+      
+      const activeBtn = Array.from(document.querySelectorAll('.tab-btn')).find(b => b.getAttribute('onclick').includes(tabId));
+      if (activeBtn) activeBtn.classList.add('active');
+      
+      const target = document.getElementById(tabId);
+      if (target) target.style.display = 'block';
+
+      hideAlert('dashAlert');
+    }
+
+    // ==========================================
+    //  メッセージ表示ヘルパー
+    // ==========================================
+    function showAlert(elemId, type, message) {
+      const el = document.getElementById(elemId);
+      if (!el) return;
+      el.className = 'alert alert-' + type;
+      el.innerHTML = message;
+      el.style.display = 'block';
+    }
+
+    function hideAlert(elemId) {
+      const el = document.getElementById(elemId);
+      if (el) el.style.display = 'none';
+    }
+
+    // ==========================================
+    //  認証（ログイン / ログアウト）
+    // ==========================================
+    function login() {
+      const pwd = document.getElementById('adminPassword').value.trim();
+      if (!pwd) {
+        showAlert('authAlert', 'error', 'パスワードを入力してください。');
+        return;
+      }
+
+      const loginBtn = document.getElementById('loginBtn');
+      loginBtn.disabled = true;
+      loginBtn.innerHTML = '<span class="spinner"></span> 認証中...';
+      hideAlert('authAlert');
+
+      google.script.run
+        .withSuccessHandler(function(isValid) {
+          loginBtn.disabled = false;
+          loginBtn.innerText = 'ログイン';
+
+          if (isValid) {
+            currentPassword = pwd;
+            document.getElementById('authView').style.display = 'none';
+            document.getElementById('dashboardView').style.display = 'block';
+            document.getElementById('logoutBtn').style.display = 'inline-block';
+            loadSettings();
+          } else {
+            showAlert('authAlert', 'error', 'パスワードが正しくありません。初期パスワードは KokoroAdmin2026! です。');
+          }
+        })
+        .withFailureHandler(function(err) {
+          loginBtn.disabled = false;
+          loginBtn.innerText = 'ログイン';
+          showAlert('authAlert', 'error', '認証通信エラー: ' + err.message);
+        })
+        .verifyAdminPassword(pwd);
+    }
+
+    function logout() {
+      currentPassword = '';
+      document.getElementById('adminPassword').value = '';
+      document.getElementById('authView').style.display = 'block';
+      document.getElementById('dashboardView').style.display = 'none';
+      document.getElementById('logoutBtn').style.display = 'none';
+      hideAlert('authAlert');
+    }
+
+    // ==========================================
+    //  設定の読み込み
+    // ==========================================
+    function loadSettings() {
+      hideAlert('dashAlert');
+
+      google.script.run
+        .withSuccessHandler(function(res) {
+          if (res && res.success && res.data) {
+            const d = res.data;
+            document.getElementById('cfg_DESIGNER_FOLDER_ID').value = d.DESIGNER_FOLDER_ID || '';
+            document.getElementById('cfg_CHAR_IMAGE_FOLDER_ID').value = d.CHAR_IMAGE_FOLDER_ID || '';
+            document.getElementById('cfg_TEACHER_SHEET_ID').value = d.TEACHER_SHEET_ID || '';
+            document.getElementById('cfg_GACHA_FOLDER_ID').value = d.GACHA_FOLDER_ID || '';
+            document.getElementById('cfg_GACHA_SHEET_ID').value = d.GACHA_SHEET_ID || '';
+            document.getElementById('cfg_GEMINI_API_KEY').value = d.GEMINI_API_KEY || '';
+            document.getElementById('cfg_CHAT_WEBHOOK').value = d.CHAT_WEBHOOK || '';
+            document.getElementById('cfg_GEMINI_MODEL').value = d.GEMINI_MODEL || 'gemini-2.5-flash-lite';
+          }
+        })
+        .withFailureHandler(function(err) {
+          showAlert('dashAlert', 'error', '設定の読み込みに失敗しました: ' + err.message);
+        })
+        .getAdminSettings(currentPassword);
+    }
+
+    // ==========================================
+    //  設定の保存
+    // ==========================================
+    function saveSettings() {
+      hideAlert('dashAlert');
+      const saveBtn = document.getElementById('saveBtn');
+      saveBtn.disabled = true;
+      saveBtn.innerHTML = '<span class="spinner"></span> 保存中...';
+
+      const newSettings = {
+        DESIGNER_FOLDER_ID: document.getElementById('cfg_DESIGNER_FOLDER_ID').value.trim(),
+        CHAR_IMAGE_FOLDER_ID: document.getElementById('cfg_CHAR_IMAGE_FOLDER_ID').value.trim(),
+        TEACHER_SHEET_ID: document.getElementById('cfg_TEACHER_SHEET_ID').value.trim(),
+        GACHA_FOLDER_ID: document.getElementById('cfg_GACHA_FOLDER_ID').value.trim(),
+        GACHA_SHEET_ID: document.getElementById('cfg_GACHA_SHEET_ID').value.trim(),
+        GEMINI_API_KEY: document.getElementById('cfg_GEMINI_API_KEY').value.trim(),
+        CHAT_WEBHOOK: document.getElementById('cfg_CHAT_WEBHOOK').value.trim(),
+        GEMINI_MODEL: document.getElementById('cfg_GEMINI_MODEL').value.trim()
+      };
+
+      google.script.run
+        .withSuccessHandler(function(res) {
+          saveBtn.disabled = false;
+          saveBtn.innerText = '💾 設定を保存する';
+          showAlert('dashAlert', 'success', '✅ ' + (res.message || '設定を正常に保存しました！'));
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        })
+        .withFailureHandler(function(err) {
+          saveBtn.disabled = false;
+          saveBtn.innerText = '💾 設定を保存する';
+          showAlert('dashAlert', 'error', '保存中にエラーが発生しました: ' + err.message);
+        })
+        .saveAdminSettings(currentPassword, newSettings);
+    }
+
+    // ==========================================
+    //  接続診断テスト
+    // ==========================================
+    function runDiagnostics() {
+      const testBtn = document.getElementById('testBtn');
+      const progress = document.getElementById('diagProgress');
+      const table = document.getElementById('diagTable');
+      const tbody = document.getElementById('diagTbody');
+
+      testBtn.disabled = true;
+      progress.style.display = 'block';
+      table.style.display = 'none';
+      tbody.innerHTML = '';
+
+      google.script.run
+        .withSuccessHandler(function(res) {
+          testBtn.disabled = false;
+          progress.style.display = 'none';
+
+          if (res && res.success && res.results) {
+            table.style.display = 'table';
+            res.results.forEach(item => {
+              const tr = document.createElement('tr');
+              
+              let badgeClass = 'status-ok';
+              let badgeText = '正常';
+              if (item.status === 'WARN') {
+                badgeClass = 'status-warn';
+                badgeText = '要確認';
+              } else if (item.status === 'NG') {
+                badgeClass = 'status-ng';
+                badgeText = 'エラー';
+              }
+
+              tr.innerHTML = `
+                <td><strong>${escapeHtml(item.name)}</strong></td>
+                <td><span class="status-badge ${badgeClass}">${badgeText}</span></td>
+                <td>${escapeHtml(item.detail)}</td>
+              `;
+              tbody.appendChild(tr);
+            });
+          }
+        })
+        .withFailureHandler(function(err) {
+          testBtn.disabled = false;
+          progress.style.display = 'none';
+          showAlert('dashAlert', 'error', '診断テスト実行エラー: ' + err.message);
+        })
+        .testSystemConnections(currentPassword);
+    }
+
+    // ==========================================
+    //  パスワード変更
+    // ==========================================
+    function changePassword() {
+      hideAlert('pwdAlert');
+      const oldPwd = document.getElementById('oldPassword').value;
+      const newPwd = document.getElementById('newPassword').value;
+      const confirmPwd = document.getElementById('newPasswordConfirm').value;
+
+      if (newPwd !== confirmPwd) {
+        showAlert('pwdAlert', 'error', '新しいパスワードと確認用パスワードが一致しません。');
+        return;
+      }
+
+      if (newPwd.length < 6) {
+        showAlert('pwdAlert', 'error', 'パスワードは6文字以上で設定してください。');
+        return;
+      }
+
+      const pwdBtn = document.getElementById('pwdBtn');
+      pwdBtn.disabled = true;
+      pwdBtn.innerHTML = '<span class="spinner"></span> 変更中...';
+
+      google.script.run
+        .withSuccessHandler(function(res) {
+          pwdBtn.disabled = false;
+          pwdBtn.innerText = 'パスワードを変更する';
+          currentPassword = newPwd;
+          document.getElementById('pwdForm').reset();
+          showAlert('pwdAlert', 'success', '✅ ' + (res.message || 'パスワードを変更しました。'));
+        })
+        .withFailureHandler(function(err) {
+          pwdBtn.disabled = false;
+          pwdBtn.innerText = 'パスワードを変更する';
+          showAlert('pwdAlert', 'error', '変更エラー: ' + err.message);
+        })
+        .changeAdminPassword(oldPwd, newPwd);
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+  </script>
+</body>
+</html>

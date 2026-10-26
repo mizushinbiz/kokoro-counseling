@@ -1,0 +1,528 @@
+<script>
+  /* * Logic Module
+   * アプリの状態管理、イベントハンドリング、API通信を一括管理します。
+   */
+
+  // ==============================================
+  //  ▼ 音声読み上げモジュール (VoicePlayer)
+  //  ※現在TTS機能は未実装（停止中）。将来の再開用にインターフェースを保持
+  // ==============================================
+  const VoicePlayer = {
+    currentAudio: null,
+
+    play: function(text) {
+      // 現在はボイス機能停止中（将来の機能拡張用プレースホルダー）
+      this.stop();
+    },
+
+    // 読み上げ停止
+    stop: function() {
+      if (this.currentAudio) {
+        this.currentAudio.pause();
+        this.currentAudio.currentTime = 0;
+        this.currentAudio = null;
+      }
+    }
+  };
+
+
+  // ==============================================
+  //  ▼ アプリ本体 (App Logic)
+  // ==============================================
+  const app = {
+    state: {
+      settings: { hiragana: true, voice: false, mode: 'soft' },
+      session: { startFeel: '', endFeel: '', history: [], tempSummary: '' }, 
+      avatarImages: {},
+      userName: '', // ★ここに追加：名前を保持する場所
+      isRecognizing: false,
+      recognition: null,
+      maxTurn: (typeof SERVER_MAX_TURN !== 'undefined') ? SERVER_MAX_TURN : 30
+    },
+
+    // ==============================================
+    //  1. 初期化 & アバターロード
+    // ==============================================
+    init: function() {
+    google.script.run
+      .withSuccessHandler((data) => {
+        // dataには { NAME: "https://drive.google.com/..." } というURLのリストが入っています
+        app.state.avatarImages = data;
+
+        // ★追加：Rendererを使って画像をプリロード
+        Renderer.preloadImages(data);
+
+        const loader = document.getElementById('loading-indicator');
+        if(loader) loader.style.display = 'none';
+
+        // Rendererに渡されるのはBase64ではなくURLになりますが、
+        // <img>タグのsrcに入れる仕組みであれば、そのままで動きます。
+        Renderer.setAvatar('[NEUTRAL]', app.state.avatarImages);
+      })
+      .withFailureHandler((e) => alert("読み込みエラー: リロードしてください"))
+      .getAvatarImages();
+
+    // ユーザー名の読み込み（ここは変更なし）
+    google.script.run
+      .withSuccessHandler((name) => {
+          app.state.userName = name;
+          console.log("ユーザー名取得:", name);
+      })
+      .getUserName();
+  },
+
+    // ==============================================
+    //  2. イベントハンドラ
+    // ==============================================
+    handlers: {
+      onStartFlow: function() {
+        app.state.settings.hiragana = document.getElementById('set-hiragana').checked;
+        app.state.settings.voice = false; // ボイス機能は現在未実装
+        const feelings = ['うれしい', 'ふつう', 'かなしい', 'おこってる', 'つかれた', 'ドキドキ', 'モヤモヤ'];
+        Renderer.renderButtons('feeling-btn-container', feelings, (selected) => {
+           app.state.session.startFeel = selected;
+           Renderer.toggleModal('modal-feeling', false);
+           app.logic.startChat();
+        });
+        Renderer.toggleModal('modal-feeling', true);
+      },
+
+      onShowRecord: function() {
+        // 画面切り替え時に読み上げを止める
+        VoicePlayer.stop();
+        Renderer.switchView('view-record');
+        app.logic.loadRecords();
+      },
+
+      onBackToTitle: function() {
+        VoicePlayer.stop();
+        Renderer.switchView('view-title');
+      },
+
+      onSendMessage: function() {
+        const input = document.getElementById('chat-input');
+        const text = input.value.trim();
+        if(!text) return;
+        input.value = '';
+        app.logic.processUserMessage(text);
+      },
+
+      onChatKeydown: function(e) {
+        if(e.key === 'Enter' && !e.isComposing) {
+           e.preventDefault();
+           app.handlers.onSendMessage();
+        }
+      },
+
+      onClickMic: function() {
+        // 音声認識中は読み上げを止める
+        VoicePlayer.stop();
+        document.getElementById('voice-text-final').innerText = '';
+        document.getElementById('voice-text-interim').innerText = '';
+        Renderer.toggleModal('modal-voice', true);
+        app.logic.startVoiceRec();
+      },
+      
+      onVoiceToggle: function() {
+        if(app.state.isRecognizing) app.logic.stopVoiceRec();
+        else app.logic.startVoiceRec();
+      },
+      
+      onVoiceOK: function() {
+        app.logic.stopVoiceRec();
+        const text = document.getElementById('voice-text-final').innerText;
+        Renderer.toggleModal('modal-voice', false);
+        if(text) app.logic.processUserMessage(text);
+      },
+      
+      onVoiceCancel: function() {
+        app.logic.stopVoiceRec();
+        Renderer.toggleModal('modal-voice', false);
+      },
+
+      onClickMagic: function() {
+        // 1. データ定義
+        const magicData = {
+          'きもち': ['うれしい', 'わくわく', 'ふつう', 'どきどき', 'しょんぼり', 'ぷんぷん', 'もやもや'],
+          'おねがい': ['どうすればいい？', 'いっしょに かんがえて', 'おはなしをきいて', 'れんしゅうしたい', 'ヒントをちょうだい', 'せんせいにつたえて'],
+          'おへんじ': ['わかった！', 'なるほど！', 'ありがとう！', 'うれしい！', 'ちょっとちがうかも', 'もういちどいって', 'むずかしいよ']
+        };
+        
+        // ★追加: カテゴリごとの色定義（パステル調で統一）
+        const categoryColors = {
+          'きもち':   '#ffccbc', // 薄いサーモンピンク
+          'おねがい': '#dcedc8', // 薄い黄緑
+          'おへんじ': '#b3e5fc'  // 薄い水色
+        };
+
+        const container = document.getElementById('magic-content');
+        const title = document.getElementById('magic-title');
+        
+        // --- 内部関数: カテゴリ一覧を表示 (Level 1) ---
+        const showCategories = () => {
+           container.innerHTML = '';
+           if(title) title.innerText = '📂 まほうの メニュー';
+           
+           // カテゴリボタン生成
+           Object.keys(magicData).forEach(cat => {
+               const btn = document.createElement('button');
+               btn.className = 'btn-option';
+               btn.innerHTML = `<b>${cat}</b>`;
+               btn.style.margin = "5px";
+               btn.style.background = categoryColors[cat] || "#fff9c4"; 
+               btn.style.color = "#5d4037"; // 文字は共通の茶色
+               btn.style.borderColor = "rgba(0,0,0,0.05)"; // うっすら枠線
+               btn.onclick = () => showOptions(cat);
+               container.appendChild(btn);
+           });
+
+           // 「やめる」ボタン
+           const hr = document.createElement('hr');
+           hr.style.width = "100%";
+           hr.style.border = "none";
+           hr.style.borderTop = "1px dashed #ddd";
+           hr.style.margin = "15px 0 10px 0";
+           container.appendChild(hr);
+
+           const closeBtn = document.createElement('button');
+           closeBtn.className = 'btn-tool';
+           closeBtn.style.width = "100%";
+           closeBtn.style.height = "50px";
+           closeBtn.style.background = "#f5f5f5";
+           closeBtn.style.color = "#5d4037"; // ここも文字色統一
+           closeBtn.innerText = "× やめる";
+           closeBtn.onclick = () => Renderer.toggleModal('modal-magic', false);
+           container.appendChild(closeBtn);
+        };
+
+        // --- 内部関数: 詳細選択肢を表示 (Level 2) ---
+        const showOptions = (category) => {
+           container.innerHTML = '';
+           if(title) title.innerText = `「${category}」を えらぶ`;
+
+           // 選択肢ボタン生成（既存のRendererを利用）
+           Renderer.renderButtons('magic-content', magicData[category], (text) => {
+               Renderer.toggleModal('modal-magic', false);
+               app.logic.processUserMessage(text);
+           });
+
+           // 「もどる」ボタン
+           const backBtn = document.createElement('button');
+           backBtn.className = 'btn-tool'; 
+           backBtn.style.marginTop = "20px";
+           backBtn.style.width = "100%";
+           backBtn.style.height = "50px";
+           backBtn.style.background = "#e0e0e0"; 
+           backBtn.innerHTML = "↩ カテゴリに もどる";
+           backBtn.onclick = () => showCategories(); 
+           container.appendChild(backBtn);
+        };
+        
+        // 初期表示実行
+        Renderer.toggleModal('modal-magic', true);
+        showCategories();
+      },
+
+      onClickEnd: function() {
+        app.logic.startEndFlow();
+      },
+
+      onFinishData: function(shareWithTeacher, targetTeacher) {
+        app.logic.finishApp(shareWithTeacher, targetTeacher);
+      }
+    },
+
+    // ==============================================
+    //  3. コアロジック
+    // ==============================================
+    logic: {
+      startChat: function() {
+        Renderer.switchView('view-chat');
+        app.state.session.history = [];
+        app.state.session.tempSummary = ''; 
+        document.getElementById('chat-history-area').innerHTML = '<div class="chat-spacer" style="height:20px;"></div>'; 
+        
+        // ローディング表示（AIが挨拶を考えている演出）
+        Renderer.toggleLoading(true);
+
+        const startFeel = app.state.session.startFeel;
+
+        // ★サーバーへ挨拶生成リクエスト
+        google.script.run
+          .withSuccessHandler((res) => {
+             Renderer.toggleLoading(false);
+             // サーバーから返ってきた挨拶と感情を使用
+             // res = { text: "...", emotion: "..." } の想定ですが、
+             // textの中に既に感情タグが含まれている場合もあるのでそのまま渡します
+             app.logic.addAiMessage(res.text);
+          })
+          .withFailureHandler((e) => {
+             Renderer.toggleLoading(false);
+             // 通信エラー時は定型文（既存ロジック）
+             let msg = "こんにちは！おはなし きかせてね。";
+             let emotion = "[GREETING]";
+             if (['かなしい', 'つかれた'].includes(startFeel)) {
+                 msg = "こんにちは。ゆっくりでいいからね。";
+                 emotion = "[DEEP_EMPATHY]";
+             } else if (['おこってる', 'モヤモヤ'].includes(startFeel)) {
+                 msg = "なにかイヤなことがあったのかな？";
+                 emotion = "[SERIOUS]";
+             }
+             app.logic.addAiMessage(msg, emotion);
+          })
+          .getInitialGreeting(startFeel);
+      },
+
+      processUserMessage: function(text) {
+        Renderer.addMessage('user', text);
+        app.state.session.history.push({ sender: 'user', text: text });
+        Renderer.toggleLoading(true);
+
+        google.script.run
+          .withSuccessHandler((res) => {
+             Renderer.toggleLoading(false);
+              if(res.forceEnd) {
+                // 即座に入力を禁止する（チャット継続防止）
+                const input = document.getElementById('chat-input');
+                const btn = document.getElementById('btn-send');
+                if(input) input.disabled = true;
+                if(btn) btn.disabled = true;
+
+                // 最後のメッセージを表示
+                app.logic.addAiMessage(res.text || "そろそろまとめようか");
+                
+                // 2秒後に終了画面へ
+                setTimeout(() => app.handlers.onClickEnd(), 2000);
+                return;
+             }
+             app.logic.addAiMessage(res.text);
+             
+             // ターン数チェック
+             const turns = Math.floor(app.state.session.history.length / 2);
+             if (turns >= app.state.maxTurn) {
+                setTimeout(() => {
+                   alert("たくさんおはなししたね！そろそろまとめようか。");
+                   app.handlers.onClickEnd();
+                }, 3000);
+             }
+          })
+          .withFailureHandler((e) => {
+             Renderer.toggleLoading(false);
+             Renderer.addMessage('AI', 'ごめんね、うまくつながらなかったみたい。');
+          })
+          .getChatResponse(text, app.state.session.history, app.state.settings);
+      },
+
+      addAiMessage: function(rawText, forceEmotion) {
+        // 1. まずテキストと感情を整理する
+        let text = rawText;
+        let emotion = forceEmotion || '[NEUTRAL]';
+        const match = text.match(/^\[([A-Z_]+)\]/);
+        if (match && !forceEmotion) {
+           emotion = match[0];
+           text = text.replace(emotion, '').trim();
+        }
+
+        // 2. 【最優先】 音声再生を開始する (画面描画の前に命令を出す)
+        if(app.state.settings.voice) {
+           VoicePlayer.play(text);
+        }
+
+        // 3. その後、画面の描画（タイプライター）を開始する
+        Renderer.addMessage('AI', text);
+        
+        // 4. 履歴保存とアバター更新
+        app.state.session.history.push({ sender: 'AI', text: text });
+        Renderer.setAvatar(emotion, app.state.avatarImages);
+      },
+
+      // ↑ speakメソッドは削除し、VoicePlayerへ移動しました
+
+      startVoiceRec: function() {
+        if (!('webkitSpeechRecognition' in window)) {
+            alert("マイク未対応です"); return;
+        }
+        if(!app.state.recognition) {
+            const r = new webkitSpeechRecognition();
+            r.lang = 'ja-JP'; r.interimResults = true; r.continuous = true;
+            r.onresult = (event) => {
+                let final = ''; let interim = '';
+                for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    if (event.results[i].isFinal) final += event.results[i][0].transcript;
+                    else interim += event.results[i][0].transcript;
+                }
+                const fSpan = document.getElementById('voice-text-final');
+                const iSpan = document.getElementById('voice-text-interim');
+                if(fSpan) fSpan.innerText += final;
+                if(iSpan) iSpan.innerText = interim;
+            };
+            app.state.recognition = r;
+        }
+        try { 
+          app.state.recognition.start(); 
+          app.state.isRecognizing = true;
+          const btn = document.getElementById('btn-voice-toggle');
+          if(btn) btn.innerText = "⏸️ とめる";
+        } catch(e) {}
+      },
+
+      stopVoiceRec: function() {
+        if(app.state.recognition) {
+           app.state.recognition.stop();
+           app.state.isRecognizing = false;
+           const btn = document.getElementById('btn-voice-toggle');
+           if(btn) btn.innerText = "🎤 はなす";
+        }
+      },
+
+      loadRecords: function() {
+        const container = document.getElementById('record-list-container');
+        container.innerHTML = '<div class="loader">よみこみちゅう...</div>';
+        google.script.run
+          .withSuccessHandler((records) => {
+             Renderer.renderRecords(records, app.logic.saveMemo, app.logic.solveRecord);
+          })
+          .getConsultationRecords();
+      },
+      
+      saveMemo: function(index, text) {
+         google.script.run.updateMemo(index, text);
+         alert("メモをほぞんしました");
+      },
+      
+      solveRecord: function(index, currentStatus) {
+         if(!confirm("かいけつとみかいけつをかえますか？")) return;
+         google.script.run
+           .withSuccessHandler(() => app.logic.loadRecords())
+           .updateRecord(index, 'G', currentStatus ? '' : 'かいけつ');
+      },
+
+      // ==============================================
+      //  ▼ 終了フロー
+      // ==============================================
+      
+      startEndFlow: function() {
+         Renderer.toggleModal('modal-end', true);
+         
+         if (!app.state.session.tempSummary) {
+             const historyText = app.state.session.history
+               .map(h => `${h.sender === 'user' ? '自分' : 'AI'}: ${h.text}`).join('\n');
+             
+             google.script.run
+               .withSuccessHandler((txt) => {
+                   app.state.session.tempSummary = txt;
+                   const el = document.getElementById('end-summary-text');
+                   if(el) el.value = txt;
+               })
+               .generateSummary(historyText);
+         }
+
+         app.logic.goToStep1();
+      },
+
+      goToStep1: function() {
+         const feelings = ['すっきりした', 'まだ かなしい', 'まだ もやもや', 'じぶんでやってみる', 'これからがんばる'];
+         
+         Renderer.renderEndStep1(
+            feelings, 
+            (selected) => {
+               app.state.session.endFeel = selected;
+               app.logic.goToStep2(); 
+            },
+            () => Renderer.toggleModal('modal-end', false)
+         );
+      },
+
+      goToStep2: function() {
+         const summary = app.state.session.tempSummary || "AIが まとめを かいています...(もうすぐ でるよ)";
+         const currentMemo = ""; 
+
+         Renderer.renderEndStep2(
+            summary,
+            currentMemo,
+            (shareWithTeacher, targetTeacher) => app.logic.finishApp(shareWithTeacher, targetTeacher),
+            () => app.logic.goToStep1() 
+         );
+      },
+
+      // ----------------------------------------------------
+      //  修正：finishApp (リロードではなくリセット関数を呼ぶ)
+      // ----------------------------------------------------
+      finishApp: function(shareWithTeacher, targetTeacher) {
+         const summary = document.getElementById('end-summary-text').value;
+         const memo = document.getElementById('end-memo-input').value;
+         const endFeel = app.state.session.endFeel || '（えらんでない）';
+         
+         const data = {
+             date: new Date().toISOString(),
+             startFeel: app.state.session.startFeel,
+             endFeel: endFeel,
+             memo: memo,
+             history: summary,
+             fullHistory: app.state.session.history.map(m=>m.sender+":"+m.text).join('\n'),
+             shareWithTeacher: shareWithTeacher,
+             targetTeacher: targetTeacher
+         };
+         
+         // 画面をロックまたはローディング表示（重複送信防止）
+         Renderer.toggleLoading(true);
+
+         google.script.run
+           .withSuccessHandler(() => {
+              Renderer.toggleLoading(false);
+              alert("おつかれさまでした！またね。");
+              app.logic.resetToTitle(); 
+           })
+           .withFailureHandler((e) => {
+              Renderer.toggleLoading(false);
+              alert("エラー：保存できませんでした。\n" + e);
+           })
+           .saveCounselingData(data);
+      },
+
+      // ----------------------------------------------------
+      //  ★追加：アプリの状態を初期化してタイトルに戻す関数
+      // ----------------------------------------------------
+      resetToTitle: function() {
+          // 1. セッションデータを空にする
+          app.state.session = { startFeel: '', endFeel: '', history: [], tempSummary: '' };
+          app.state.isRecognizing = false;
+
+          // 2. チャット履歴の表示を消す
+          const historyArea = document.getElementById('chat-history-area');
+          if(historyArea) {
+             historyArea.innerHTML = '<div class="chat-spacer" style="height:20px;"></div>';
+          }
+          
+          // 3. 入力欄の中身を空にする
+          ['chat-input', 'memo-input', 'end-memo-input', 'end-summary-text'].forEach(id => {
+              const el = document.getElementById(id);
+              if(el) el.value = '';
+          });
+
+          // 4. 開いているモーダル（感情選択や終了画面など）を全て閉じる
+          ['modal-feeling', 'modal-voice', 'modal-magic', 'modal-end'].forEach(id => {
+              Renderer.toggleModal(id, false);
+          });
+
+          // 5. 音声を停止
+          VoicePlayer.stop();
+
+          // 6. 画面を「view-title（_introの内容）」に切り替える
+          Renderer.switchView('view-title');
+
+          // ===============================================
+          // ★ここが追加ポイント：イントロ画面（オーバーレイ）を復活させる
+          // ===============================================
+          const introOverlay = document.getElementById('intro-overlay');
+          if (introOverlay) {
+              introOverlay.style.display = 'flex'; // CSSに合わせてflexに戻す
+              introOverlay.style.opacity = '1';    // 透明度を元に戻す
+          }
+
+      }
+    }
+  };
+
+  document.addEventListener('DOMContentLoaded', app.init);
+</script>

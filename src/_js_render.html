@@ -1,0 +1,453 @@
+<script>
+  /* * Renderer Module
+   * ロジックからデータを受け取り、HTML要素を生成してDOMに配置します。
+   * タイプライター演出を追加実装済み。
+   */
+
+  const Renderer = {
+    
+    // ▼ 画面切り替え ▼
+    switchView: function(viewId) {
+      document.querySelectorAll('.view-panel').forEach(el => el.classList.remove('active'));
+      const target = document.getElementById(viewId);
+      if(target) target.classList.add('active');
+      
+      const sidebarControls = document.getElementById('sidebar-controls');
+      if (sidebarControls) {
+        sidebarControls.style.display = (viewId === 'view-chat') ? 'flex' : 'none';
+      }
+    },
+
+    // ▼ モーダル表示/非表示 ▼
+    toggleModal: function(modalId, show) {
+      const el = document.getElementById(modalId);
+      if(el) {
+        el.style.display = show ? 'flex' : 'none';
+      }
+    },
+
+    preloadImages: function(imageMap) {
+      if (!imageMap) return;
+      console.log("画像を裏読み込み中...");
+      // 画像URLのリストを受け取り、ブラウザにキャッシュさせる
+      Object.values(imageMap).forEach(url => {
+        const img = new Image();
+        img.src = url;
+      });
+    },
+    
+    // ▼ アバター描画 ▼
+    setAvatar: function(emotionTag, imageMap) {
+      const container = document.getElementById('avatar-mount-point');
+      if(!container || !imageMap) return;
+
+      let key = emotionTag.toUpperCase().replace(/[\[\]]/g, '');
+      // フォールバック検索
+      let src = imageMap[key] || imageMap['['+key+']'] || imageMap['NEUTRAL'] || imageMap['[NEUTRAL]'];
+
+      if (src) {
+        // referrerpolicy="no-referrer" を追加：Googleドライブの画像ブロック回避率を高めます
+        container.innerHTML = `<img src="${src}" class="avatar-image" alt="${key}" referrerpolicy="no-referrer">`;
+      } else {
+        container.innerHTML = `<div class="avatar-placeholder">🌱</div>`;
+      }
+    },
+
+    // ▼ チャットメッセージ追加（タイプライター演出付き） ▼
+    addMessage: function(sender, text) {
+      const historyArea = document.getElementById('chat-history-area');
+      const row = document.createElement('div');
+      row.className = `chat-row ${sender === 'user' ? 'user' : 'ai'}`;
+      
+      const bubble = document.createElement('div');
+      bubble.className = 'chat-bubble';
+      
+      row.appendChild(bubble);
+      historyArea.appendChild(row);
+
+      // 自動スクロール関数
+      const scrollBottom = () => {
+         historyArea.scrollTo({ top: historyArea.scrollHeight, behavior: 'smooth' });
+      };
+
+      if (sender === 'user') {
+        // ユーザーは即時表示
+        bubble.textContent = text;
+        setTimeout(scrollBottom, 50);
+      } else {
+        // AIはタイプライター表示（タップでスキップ可能）
+        let i = 0;
+        const speed = 40; // 基本スピード
+        let isComplete = false;
+        let timerId = null;
+        
+        // 入力を一時的にブロックする（読み終わるまで）
+        const input = document.getElementById('chat-input');
+        if(input) input.disabled = true;
+
+        // 全文スキップ処理
+        const completeMessage = () => {
+          if (isComplete) return;
+          isComplete = true;
+          if (timerId) clearTimeout(timerId);
+          bubble.textContent = text;
+          scrollBottom();
+          bubble.style.cursor = 'default';
+          bubble.removeAttribute('title');
+          if(input) { input.disabled = false; input.focus(); }
+          bubble.removeEventListener('click', completeMessage);
+        };
+
+        // 吹き出しをタップすると一瞬で全文表示
+        bubble.style.cursor = 'pointer';
+        bubble.title = 'タップでぜんぶひょうじ';
+        bubble.addEventListener('click', completeMessage);
+
+        function typeWriter() {
+          if (isComplete) return;
+
+          if (i < text.length) {
+            i++;
+            // 元の文字列から正確にスライスして代入（スペースがブラウザに消去される現象を防止）
+            bubble.textContent = text.substring(0, i);
+            const char = text.charAt(i - 1);
+            
+            // 句読点ウェイト（日本語・英語両対応）
+            let delay = speed;
+            if (char === '、' || char === ',') delay = 150;
+            if (char === '。' || char === '.' || char === '！' || char === '!' || char === '？' || char === '?') delay = 350;
+            if (char === ' ') delay = speed / 2;
+            
+            scrollBottom();
+            timerId = setTimeout(typeWriter, delay);
+          } else {
+            completeMessage();
+          }
+        }
+        typeWriter();
+      }
+    },
+
+    // ▼ 読み込み中の表示切り替え ▼
+    toggleLoading: function(show) {
+      const loader = document.getElementById('chat-thinking');
+      if(loader) loader.style.display = show ? 'block' : 'none';
+      
+      const input = document.getElementById('chat-input');
+      const btn = document.getElementById('btn-send');
+      // AIの入力待ちの間は非活性化
+      if(input) input.disabled = show;
+      if(btn) btn.disabled = show;
+      if(show && input) input.blur();
+    },
+
+    // ▼ 記録カードの生成（交換日記スタイル） ▼
+    renderRecords: function(records, onSaveMemo, onToggleSolved) {
+      const container = document.getElementById('record-list-container');
+      container.innerHTML = '';
+
+      if (!records || records.length === 0) {
+        container.innerHTML = `
+          <div style="text-align:center; padding:50px; opacity:0.6;">
+            <div style="font-size:4rem;">📔</div>
+            <p>まだ にっきは ないよ。<br>おはなし してみよう！</p>
+          </div>`;
+        return;
+      }
+
+      records.forEach(r => {
+        const card = document.createElement('div');
+        const isSolved = (r.solved === 'かいけつ' || r.solved === 'TRUE' || r.solved === true);
+        const isSent = (r.teacher === 'つたえた');
+        
+        // カードのベースクラス
+        card.className = 'record-card';
+        // 左側の色は「つたえた（オレンジ）」か「ひみつ（緑）」かで変える
+        card.style.borderLeftColor = isSent ? '#ffb74d' : '#81c784';
+
+        // 日付整形
+        let dateStr = r.date;
+        try {
+           const d = new Date(r.date);
+           if(!isNaN(d)) {
+             // 「1/23(月)」のような形式に
+             const days = ['日','月','火','水','木','金','土'];
+             dateStr = `${d.getMonth()+1}月${d.getDate()}日 (${days[d.getDay()]})`;
+           }
+        } catch(e){}
+
+        // HTML構築（修正版：ボタンクラス適用、スタンプ文言シンプル化）
+        card.innerHTML = `
+          <div class="record-header">
+             <div class="record-date">📅 ${dateStr}</div>
+             <div class="record-stamp ${isSent ? 'stamp-sent' : 'stamp-secret'}">
+               ${isSent ? '📮 せんせいに<br>つたえたよ' : '🔒 じぶんだけの<br>ひみつ'}
+             </div>
+          </div>
+
+          <div class="record-feeling-flow">
+             <span class="feel-tag">${r.start}</span> 
+             <span class="feel-arrow">➡</span> 
+             <span class="feel-tag" style="font-size:1.1em; color:#d84315;">${r.end || '？'}</span>
+          </div>
+
+          <div class="record-summary">
+             ${r.summary}
+          </div>
+
+          <div class="record-memo-container">
+             <span style="font-size:1.2rem; color:#888;">📝</span>
+             <input type="text" id="memo-${r.rowIndex}" class="record-memo-input" 
+                    value="${r.memo || ''}" placeholder="ここに メモを かけるよ">
+             <button id="btn-save-${r.rowIndex}" class="btn-memo-save" title="ほぞん">
+               💾
+             </button>
+          </div>
+
+          <div class="record-footer">
+             <button id="btn-solve-${r.rowIndex}" class="btn-solve-toggle ${isSolved ? 'solved' : ''}">
+                ${isSolved ? 'かいけつしたよ！（もどす）' : 'まだ つづいてる（かいけつにする）'}
+             </button>
+          </div>
+        `;
+
+        container.appendChild(card);
+        
+        // イベントハンドラ設定
+        const memoInput = document.getElementById(`memo-${r.rowIndex}`);
+        // Enterキーでも保存できるようにする
+        memoInput.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') onSaveMemo(r.rowIndex, memoInput.value);
+        });
+
+        document.getElementById(`btn-save-${r.rowIndex}`).onclick = () => onSaveMemo(r.rowIndex, memoInput.value);
+        document.getElementById(`btn-solve-${r.rowIndex}`).onclick = () => onToggleSolved(r.rowIndex, isSolved);
+      });
+    },
+
+    // ▼ 汎用：ボタンリスト生成（色付きシール風） ▼
+    renderButtons: function(containerId, items, onClick) {
+      const container = document.getElementById(containerId);
+      if(!container) return;
+      
+      container.innerHTML = '';
+      const colors = ['#FFCDD2', '#F8BBD0', '#E1BEE7', '#D1C4E9', '#BBDEFB', '#B3E5FC', '#C8E6C9', '#FFF9C4', '#FFE0B2'];
+      
+      items.forEach((item, idx) => {
+        const btn = document.createElement('button');
+        btn.className = 'btn-option';
+        btn.style.backgroundColor = colors[idx % colors.length];
+        btn.style.borderColor = "#fff"; // 白い縁取り
+        
+        btn.innerText = item;
+        btn.onclick = () => onClick(item);
+        
+        container.appendChild(btn);
+      });
+    },
+
+    // ============================================================
+    //  ▼ 終了フロー Step 1 (きもち選択) ▼
+    // ============================================================
+    renderEndStep1: function(feelings, onSelect, onCancel) {
+      const modalBox = document.querySelector('#modal-end .modal-box');
+      modalBox.className = 'modal-box wide-box'; 
+      
+      modalBox.innerHTML = `
+        <h2 style="margin-top:0;">きょうは はなしてみて どうだった？</h2>
+        <div id="end-feel-container" class="grid-buttons" style="margin-bottom:20px;"></div>
+        <div style="text-align:center;">
+           <button id="btn-cancel-end">↩ まだつづける</button>
+        </div>
+      `;
+      
+      this.renderButtons('end-feel-container', feelings, onSelect);
+      document.getElementById('btn-cancel-end').onclick = onCancel;
+    },
+
+    // ============================================================
+    //  ▼ 終了フロー Step 2 (まとめ・メモ・最終選択) ▼
+    // ============================================================
+    renderEndStep2: function(summaryText, currentMemo, onFinish, onBack) {
+      const modalBox = document.querySelector('#modal-end .modal-box');
+      modalBox.className = 'modal-box wide-box split-modal'; 
+
+      // 【修正】インラインスタイルを削除し、CSSクラスで制御するように変更
+      modalBox.innerHTML = `
+        <div class="modal-left">
+           <h3 style="margin-top:0;">📝 AIのまとめ</h3>
+           <textarea id="end-summary-text" readonly>${summaryText}</textarea>
+           
+           <div class="memo-area" style="margin-top:20px;">
+             <label style="font-size:1rem; font-weight:bold; display:block; margin-bottom:5px; color:#5d4037;">ひとことメモ:</label>
+             <input type="text" id="end-memo-input" value="${currentMemo}" placeholder="わすれないように...">
+           </div>
+        </div>
+        
+        <div class="modal-right">
+           <div style="text-align:center; margin-bottom:20px;">
+              <h3 style="margin:0 0 10px 0;">さいごに</h3>
+              <p style="font-size:1rem; color:#666; margin:0;">このそうだんを、せんせいにも<br>つたえますか？</p>
+           </div>
+           
+           <div id="end-action-buttons" style="display:flex; flex-direction:column; gap:15px; width:100%; align-items:center;">
+              <button id="btn-finish-secret" class="btn-secret">
+                 🔒 ひみつにして おわる
+              </button>
+              <button id="btn-finish-share" class="btn-share">
+                 📢 せんせいにも つたえる
+              </button>
+           </div>
+           
+           <div style="margin-top:30px; text-align:center;">
+              <button id="btn-step2-back">↩ きもちせんたくに もどる</button>
+           </div>
+        </div>
+      `;
+
+      document.getElementById('btn-finish-secret').onclick = () => this.confirmEndAction(false, onFinish);
+      document.getElementById('btn-finish-share').onclick = () => this.renderTeacherSelection(onFinish);
+      document.getElementById('btn-step2-back').onclick = onBack;
+    },
+
+    // ★追加: 先生を選ぶ画面の描画
+    renderTeacherSelection: function(onFinish) {
+      const container = document.getElementById('end-action-buttons');
+      
+      // 1. 「きもちせんたくに戻る」ボタンを一時的に隠す
+      const mainBackBtn = document.getElementById('btn-step2-back');
+      if(mainBackBtn) mainBackBtn.style.display = 'none';
+
+      // デザイン用のスタイル定数（UIの統一感を出すため）
+      const btnBaseStyle = "flex:1; padding:12px 5px; font-size:14px; border-radius:12px; border:none; cursor:pointer; line-height:1.2; box-shadow: 0 2px 5px rgba(0,0,0,0.1);";
+      const btnColor    = "background:#fff9c4; color:#5d4037;"; // 薄い黄色（共通ボタン）
+      const inputStyle  = "width:60px; border:none; border-bottom:1px solid #aaa; background:transparent; font-size:14px; text-align:center; outline:none; color:#333;";
+
+      // HTML生成
+      container.innerHTML = `
+        <div style="text-align:center; font-weight:bold; color:#555; margin-bottom:15px;">だれに つたえますか？</div>
+        
+        <div style="display:flex; flex-direction:column; gap:12px; width:100%;">
+            
+            <div style="display:flex; gap:10px;">
+                <button style="${btnBaseStyle} ${btnColor}" 
+                  onclick="Renderer.confirmEndAction(true, app.handlers.onFinishData, 'こうちょうせんせい')">
+                  🏫 こうちょう<br>せんせい
+                </button>
+                <button style="${btnBaseStyle} ${btnColor}" 
+                  onclick="Renderer.confirmEndAction(true, app.handlers.onFinishData, 'ほけんのせんせい')">
+                  🩹 ほけんの<br>せんせい
+                </button>
+            </div>
+
+            <div style="display:flex; gap:10px;">
+                <button style="${btnBaseStyle} ${btnColor}" 
+                  onclick="Renderer.confirmEndAction(true, app.handlers.onFinishData, 'たんにんのせんせい')">
+                  📛 たんにんの<br>せんせい
+                </button>
+                
+                <div style="${btnBaseStyle} ${btnColor} display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:text;" 
+                     onclick="document.getElementById('input-teacher-name').focus()">
+                    
+                    <input type="text" id="input-teacher-name" placeholder="せんせいの なまえ" 
+                           style="background:transparent; border:none; border-bottom:1px dashed #8d6e63; width:80%; text-align:center; color:#5d4037; font-size:14px; font-weight:bold; outline:none; margin-bottom:2px;" 
+                           maxlength="8">
+                    
+                    <span style="font-size:14px; font-weight:bold; color:#5d4037;">せんせい</span>
+                </div>
+            </div>
+
+            <div style="display:flex; gap:10px; margin-top:5px;">
+                <button id="btn-custom-teacher" style="${btnBaseStyle} background:#81c784; color:white; font-weight:bold;">
+                  OK
+                </button>
+                <button id="btn-teacher-back" style="${btnBaseStyle} background:#e0e0e0; color:#555;">
+                  ↩ もどる
+                </button>
+            </div>
+
+        </div>
+      `;
+
+      // 自由入力の「OK」処理
+      document.getElementById('btn-custom-teacher').onclick = () => {
+         const name = document.getElementById('input-teacher-name').value.trim();
+         if(!name) {
+           alert("せんせいの おなまえを かいてね");
+           return;
+         }
+         this.confirmEndAction(true, onFinish, name + "せんせい");
+      };
+
+      // 「もどる」ボタン処理
+      document.getElementById('btn-teacher-back').onclick = () => {
+         // 隠していた「きもちせんたくに戻る」を再表示
+         if(mainBackBtn) mainBackBtn.style.display = 'block';
+
+         // 元のボタン（ひみつ/つたえる）に戻す
+         container.innerHTML = `
+              <button id="btn-finish-secret-re" class="btn-secret">🔒 ひみつにして おわる</button>
+              <button id="btn-finish-share-re" class="btn-share">📢 そうだんのせんせいに つたえる</button>
+         `;
+         document.getElementById('btn-finish-secret-re').onclick = () => this.confirmEndAction(false, onFinish);
+         document.getElementById('btn-finish-share-re').onclick = () => this.renderTeacherSelection(onFinish);
+      };
+    },
+
+
+    // ▼ 確認表示（引数 targetTeacher を追加） ▼
+    confirmEndAction: function(shareWithTeacher, onConfirm, targetTeacher = "") {
+      const container = document.getElementById('end-action-buttons');
+      
+      // メッセージの分岐
+      let msg = "「ひみつにして」おわります。<br>いいですか？";
+      if (shareWithTeacher) {
+         const teacherName = targetTeacher || "せんせい";
+         msg = `「${teacherName}」に つたえて<br>おわります。いいですか？`;
+      }
+      
+      container.innerHTML = `
+        <div style="text-align:center; font-weight:bold; color:#555; margin-bottom:20px; font-size:1.1rem;">${msg}</div>
+        <div style="display:flex; gap:20px; justify-content:center; width:100%;">
+           <button id="btn-conf-yes" class="btn-share" style="flex:1;">はい</button>
+           <button id="btn-conf-no" style="flex:1;">いいえ</button>
+        </div>
+      `;
+
+      document.getElementById('btn-conf-yes').onclick = () => {
+        // 戻るボタンを非表示
+         const backBtn = document.getElementById('btn-step2-back');
+         if(backBtn) backBtn.style.display = 'none';
+
+         const loadingText = shareWithTeacher 
+             ? "つたえて ほぞんしています…" 
+             : "ひみつにして ほぞんしています…";
+
+         container.innerHTML = `<div class="loader">${loadingText}</div>`;
+         
+         // ★修正: onConfirm に teacherRole も渡す
+         // (onConfirmの実体は _js_logic.html で定義する無名関数か、app.handlers.onFinishData)
+         // ※ここでは onFinishData を直接呼ぶ前提で引数を渡しています
+         if (typeof onConfirm === 'function') {
+             onConfirm(shareWithTeacher, targetTeacher); 
+         }
+      };
+      
+      document.getElementById('btn-conf-no').onclick = () => {
+         if(shareWithTeacher) {
+            // 先生選択に戻る
+            this.renderTeacherSelection(onConfirm);
+         } else {
+            // 最初の選択に戻る
+             container.innerHTML = `
+                  <button id="btn-finish-secret-re" class="btn-secret">🔒 ひみつにして おわる</button>
+                  <button id="btn-finish-share-re" class="btn-share">📢 せんせいにも つたえる</button>
+             `;
+             document.getElementById('btn-finish-secret-re').onclick = () => this.confirmEndAction(false, onConfirm);
+             document.getElementById('btn-finish-share-re').onclick = () => this.renderTeacherSelection(onConfirm);
+         }
+      };
+    }
+
+  };
+</script>

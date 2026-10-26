@@ -1,0 +1,272 @@
+<script>
+  /* =========================================
+   * Gacha & Collection Module (Layout Update)
+   * ========================================= */
+
+  const GachaLogic = {
+    // データ定義
+    currentCard: null,
+    
+   // ■ 初期化チェックとボタン制御（修正版）
+    initIntroButton: function() {
+    const btn = document.querySelector('#intro-overlay .btn-agree');
+    
+    // ボタンが見つからなければ終了
+    if(!btn) return;
+
+    // 判定中はボタンを隠しておく（または「確認中...」などにしても良い）
+    btn.style.display = 'none';
+
+    console.log("ユーザー確認中...");
+    
+    google.script.run
+      .withSuccessHandler((isReady) => {
+        // 判定完了：ボタンを再表示
+        btn.style.display = 'inline-block';
+
+        if (isReady) {
+          // 【パターンA】 ガチャが引ける場合
+          // ボタンの文字を変えて、ガチャ開始フローを紐付ける
+          btn.innerText = "ラッキーアクション！ 🎁"; 
+          btn.onclick = (e) => {
+            e.preventDefault();
+            GachaLogic.startGachaFlow();
+          };
+
+        } else {
+          // 【パターンB】 すでに引いている（引けない）場合
+          // ボタンの文字を変えて、ただ閉じるだけの動作にする
+          btn.innerText = "わかりました 🚀"; 
+          btn.onclick = (e) => {
+            e.preventDefault();
+            
+            // イントロを消す
+            const intro = document.getElementById('intro-overlay');
+            if(intro) intro.style.display = 'none';
+            
+            // メインコンテンツ（タイトル画面）へ確実に遷移
+            // ※Rendererが定義済みであることを前提としています
+            if (typeof Renderer !== 'undefined') {
+              Renderer.switchView('view-title');
+
+            // ★ここを追加：タイトル画面に行くと同時にボタンを注入
+            GachaLogic.injectCollectionButton();
+            }
+          };
+        }
+      })
+      .withFailureHandler((e) => {
+        // エラーが起きても閉じ込められないように、通常遷移ボタンとして表示
+        alert("読み込みエラー: " + e);
+        btn.style.display = 'inline-block';
+        btn.innerText = "はじめる";
+        btn.onclick = () => {
+           document.getElementById('intro-overlay').style.display = 'none';
+           if (typeof Renderer !== 'undefined') Renderer.switchView('view-title');
+        };
+      })
+      .checkUserAvailability();
+  },
+
+    // ■ ガチャフロー開始
+    startGachaFlow: function() {
+      const intro = document.getElementById('intro-overlay');
+      if(intro) intro.style.display = 'none';
+
+      const modal = document.getElementById('modal-gacha-overlay');
+      const loading = document.getElementById('gacha-loading-msg');
+      const card = document.getElementById('gacha-result-container');
+      
+      modal.style.display = 'flex';
+      loading.style.display = 'block';
+      card.classList.remove('show');
+      card.style.display = 'none'; // flexと衝突しないよう一旦none
+
+      google.script.run
+        .withSuccessHandler((result) => {
+          GachaLogic.showResult(result);
+        })
+        .withFailureHandler((e) => {
+          alert("ガチャエラー: " + e);
+          GachaLogic.closeGacha();
+        })
+        .doGacha();
+    },
+
+    // 結果表示演出
+    showResult: function(data) {
+      const loading = document.getElementById('gacha-loading-msg');
+      const card = document.getElementById('gacha-result-container');
+      
+      const img = new Image();
+      img.src = data.image;
+      
+      img.onload = () => {
+        loading.style.display = 'none';
+        card.style.display = 'flex'; // ★ここ重要：flexに戻す
+        
+        document.getElementById('res-rarity').innerText = data.rarity;
+        document.getElementById('res-no').innerText = data.no;
+        document.getElementById('res-img').src = data.image;
+        document.getElementById('res-action').innerText = data.action;
+        document.getElementById('res-comment').innerText = data.comment;
+
+        // ✨ NEW! バッジの表示切り替え
+        const newBadge = document.getElementById('res-new-badge');
+        if (newBadge) {
+          newBadge.style.display = data.isNew ? 'inline-block' : 'none';
+        }
+
+        setTimeout(() => {
+          card.classList.add('show');
+          GachaLogic.createSparkles(data.isNew ? 50 : 25);
+        }, 100);
+      };
+    },
+
+    createSparkles: function(count = 30) {
+      const container = document.getElementById('modal-gacha-overlay');
+      for(let i=0; i<count; i++) {
+        const s = document.createElement('div');
+        s.className = 'sparkle';
+        s.style.left = '50%';
+        s.style.top = '50%';
+        const tx = (Math.random() - 0.5) * 450 + 'px';
+        const ty = (Math.random() - 0.5) * 450 + 'px';
+        s.style.setProperty('--tx', tx);
+        s.style.setProperty('--ty', ty);
+        s.style.background = ['gold', 'orange', 'white', 'yellow', '#ff4081'][Math.floor(Math.random()*5)];
+        container.appendChild(s);
+        setTimeout(() => s.remove(), 1000);
+      }
+    },
+
+    closeGacha: function() {
+      const modal = document.getElementById('modal-gacha-overlay');
+      modal.style.display = 'none';
+      Renderer.switchView('view-title');
+      GachaLogic.injectCollectionButton();
+    },
+
+    // ■ タイトル画面にコレクションボタンを注入（修正版）
+    injectCollectionButton: function() {
+      // 1. ターゲットを「🚀はじめる」などがボタンが入っているエリアに変更
+      const container = document.querySelector('.title-actions');
+      
+      // まだ描画されていない等の理由で無ければ何もしない
+      if (!container) return;
+      
+      // 2. ボタンがまだ無ければ作成
+      if (!document.getElementById('btn-show-collection')) {
+        const btn = document.createElement('button');
+        btn.id = 'btn-show-collection';
+        
+        // ★重要：「にっきをみる」と同じクラス名を設定してサイズ・形を揃える
+        btn.className = 'btn-secondary'; 
+        
+        // 色だけ変えたい場合は上書き（水色系）
+        btn.style.backgroundColor = '#81d4fa';
+        btn.style.borderColor = '#4fc3f7';
+        btn.style.color = '#fff';
+        
+        // 既存ボタンとの間隔調整
+        btn.style.marginTop = '15px'; 
+
+        btn.innerHTML = '🗂️ たからものをみる';
+        
+        // クリック時の動作
+        btn.onclick = () => GachaLogic.openCollection();
+        
+        // コンテナの最後（にっきをみるの下）に追加
+        container.appendChild(btn);
+      }
+    },
+
+    // ■ コレクション画面を開く（修正版）
+    openCollection: function() {
+      // アプリ標準の画面切り替え機能を使う
+      // これにより、自動的に他の画面が消え、サイドバーのあるレイアウト内に表示される
+      Renderer.switchView('view-collection');
+      
+      const grid = document.getElementById('collection-grid');
+      // 読み込み中表示
+      grid.innerHTML = '<div class="loader" style="text-align:center; margin-top:50px;">🎁 データをよみこんでいます...</div>';
+
+      google.script.run
+        .withSuccessHandler((list) => {
+          GachaLogic.renderCollection(list);
+        })
+        .getCollectionList();
+    },
+    
+    // ■ コレクション画面を閉じる（修正版）
+    closeCollection: function() {
+      Renderer.switchView('view-title');
+    },
+
+    // ■ コレクション描画（新しいCSSに対応したHTMLを作る）
+    renderCollection: function(list) {
+      const grid = document.getElementById('collection-grid');
+      grid.innerHTML = '';
+
+      if (!list || list.length === 0) {
+        grid.innerHTML = '<p style="text-align:center;">まだ データがないよ</p>';
+        return;
+      }
+
+      list.forEach(item => {
+        // 取得済みかどうか
+        const isUnlocked = (item.count > 0);
+        
+        // カードの枠
+        const card = document.createElement('div');
+        card.className = `collection-item ${isUnlocked ? '' : 'locked'}`;
+
+        // ▼ 1. 左側：画像エリア（新しいCSS .col-img-wrapper に対応）
+        let leftHtml = '';
+        if (isUnlocked) {
+          // 画像URLがある場合は画像を表示、なければ絵文字を大きく表示
+          if (item.image) {
+            leftHtml = `<img src="${item.image}" class="col-img-thumb" alt="icon" loading="lazy">`;
+          } else {
+            // 画像がない場合は絵文字をアイコン風に出すフォールバック
+            leftHtml = `<div class="col-locked-icon" style="background:#fff8e1; color:#333;">${item.icon || '❓'}</div>`;
+          }
+        } else {
+          // 未取得の場合は？マーク
+          leftHtml = `<div class="col-locked-icon">❓</div>`;
+        }
+
+        // ▼ 2. 右側：情報エリア（新しいCSS .col-info-wrapper に対応）
+        // 未取得なら「???」にする
+        const rarity = isUnlocked ? item.rarity : '??';
+        const no     = item.no;
+        const action = isUnlocked ? item.action : '？？？';
+        const text   = isUnlocked ? item.comment   : 'まだ もっていないよ';
+
+        const rightHtml = `
+          <div class="col-info-wrapper">
+            <div class="col-meta-no">No.${no}</div>
+            <div class="col-rarity">${rarity}</div>
+            <div class="col-action">${action}</div>
+            <div class="col-comment">${text}</div>
+          </div>
+        `;
+
+        // 合体させる
+        card.innerHTML = `
+          <div class="col-img-wrapper">
+            ${leftHtml}
+          </div>
+          ${rightHtml}
+        `;
+
+        grid.appendChild(card);
+      });
+    },
+  };
+
+  document.addEventListener('DOMContentLoaded', () => {
+    GachaLogic.initIntroButton();
+  });
+</script>

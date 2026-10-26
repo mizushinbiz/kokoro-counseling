@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>こころのそうだんしつ</title>
+    <?!= HtmlService.createHtmlOutputFromFile('_css_layout').getContent(); ?>
+    <?!= HtmlService.createHtmlOutputFromFile('_css_theme').getContent(); ?>
+    
+    <script>
+      var SERVER_MAX_TURN = <?= serverMaxTurn || 3 ?>;
+    </script>
+  </head>
+  <body>
+
+    <div id="app-container">
+      
+      <aside id="sidebar">
+        <div id="avatar-area">
+          <div id="avatar-mount-point">
+            <div class="avatar-placeholder">🌱</div>
+          </div>
+        </div>
+
+        <div id="sidebar-controls">          
+          <div class="control-buttons">
+            <button class="btn-tool" id="btn-mic" onclick="app.handlers.onClickMic()">
+              <span class="icon">🎤</span>はなす
+            </button>
+            <button class="btn-tool" id="btn-magic" onclick="app.handlers.onClickMagic()">
+              <span class="icon">🪄</span>えらぶ
+            </button>
+            <button class="btn-tool" id="btn-end" onclick="app.handlers.onClickEnd()" style="background:#ffebee;">
+              <span class="icon">👋</span>おわる
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      <main id="main-content">
+        
+        <div id="view-title" class="view-panel active">
+          <div class="title-logo">🌱 こころのそうだんしつ</div>
+          <div class="title-actions">
+            <button class="btn-primary" onclick="app.handlers.onStartFlow()">🚀 はじめる</button>
+            <button class="btn-secondary" onclick="app.handlers.onShowRecord()">📖 にっきをみる</button>
+          </div>
+          <div class="settings-box">
+            <div class="setting-group">
+              <span class="setting-label">モード</span>
+              <label><input type="checkbox" id="set-hiragana" checked> ひらがな</label>
+              <label style="text-decoration: line-through; opacity: 0.5; cursor: not-allowed;" title="現在準備中です"><input type="checkbox" id="set-voice" disabled> ボイス</label>
+            </div>
+
+            <div class="setting-divider"></div>
+
+            <div class="setting-group">
+              <span class="setting-label">はなしかた</span>
+              <label><input type="radio" name="set-mode" value="soft" checked> ふんわり</label>
+              <label><input type="radio" name="set-mode" value="hard"> しっかり</label>
+            </div>
+          </div>
+          <div id="loading-indicator" class="loader">Loading...</div>
+        </div>
+
+        <div id="view-chat" class="view-panel">
+          <div id="chat-history-area">
+            <div class="chat-spacer"></div>
+          </div>
+          
+          <div id="chat-input-area">
+            <input type="text" id="chat-input" placeholder="ここに かいてね" onkeydown="app.handlers.onChatKeydown(event)">
+            <button id="btn-send" onclick="app.handlers.onSendMessage()">➤</button>
+          </div>
+          
+          <div id="chat-thinking" style="display:none;">
+            <div class="spinner-mini"></div> かんがえているよ...
+          </div>
+        </div>
+
+        <div id="view-record" class="view-panel">
+          <div class="panel-header">
+            <h2>📖 そうだんにっき</h2>
+            <button class="btn-small" onclick="app.handlers.onBackToTitle()">↩ もどる</button>
+          </div>
+          <div id="record-list-container">
+            </div>
+        </div>
+
+        <div id="view-collection" class="view-panel">
+          <div class="collection-header">
+            <h2>🗂️ たからもの リスト</h2>  
+            <button class="btn-small" onclick="GachaLogic.closeCollection()">↩ もどる</button>
+          </div>
+          <div id="collection-grid" class="collection-grid">
+            </div>  
+        </div>
+
+      </main>
+    </div>
+
+    <div id="modal-feeling" class="modal-overlay">
+      <div class="modal-box">
+        <h2>いまの きもちは？</h2>
+        <div id="feeling-btn-container" class="grid-buttons"></div>
+      </div>
+    </div>
+
+    <div id="modal-voice" class="modal-overlay">
+      <div class="modal-box">
+        <h2>おはなし してね</h2>
+        <div id="voice-visualizer">
+           <span id="voice-text-final"></span>
+           <span id="voice-text-interim" style="color:#aaa;"></span>
+        </div>
+        <div class="modal-actions">
+          <button onclick="app.handlers.onVoiceToggle()" id="btn-voice-toggle">⏸️ とめる</button>
+          <button onclick="app.handlers.onVoiceOK()" class="btn-ok">OK</button>
+          <button onclick="app.handlers.onVoiceCancel()">やめる</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="modal-magic" class="modal-overlay">
+      <div class="modal-box wide-box">
+        <h2 id="magic-title">まほうの メニュー</h2>
+        <div id="magic-content" class="grid-buttons"></div>
+        <div id="magic-footer" class="modal-footer"></div>
+      </div>
+    </div>
+
+    <div id="modal-end" class="modal-overlay">
+      <div class="modal-box wide-box split-modal">
+        <div class="modal-left">
+           <h3>📝 まとめ</h3>
+           <textarea id="end-summary-text" readonly></textarea>
+           <div class="memo-area">
+             <label>ひとことメモ:</label>
+             <input type="text" id="end-memo-input" placeholder="わすれないように...">
+           </div>
+        </div>
+        <div class="modal-right">
+           <div id="end-message-box">どうする？</div>
+           <div id="end-feel-selection"></div>
+           <div id="end-action-buttons">
+             </div>
+        </div>
+      </div>
+    </div>
+
+    <?!= HtmlService.createHtmlOutputFromFile('_js_render').getContent(); ?>
+    <?!= HtmlService.createHtmlOutputFromFile('_js_logic').getContent(); ?>
+    <?!= HtmlService.createHtmlOutputFromFile('_intro').getContent(); ?>
+    <?!= HtmlService.createHtmlOutputFromFile('_modal_gacha').getContent(); ?>
+    <?!= HtmlService.createHtmlOutputFromFile('_css.gacha').getContent(); ?>
+    <?!= HtmlService.createHtmlOutputFromFile('_js_gacha').getContent(); ?>
+  </body>
+</html>
