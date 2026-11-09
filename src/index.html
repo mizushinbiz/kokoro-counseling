@@ -48,16 +48,8 @@
           <div class="settings-box">
             <div class="setting-group">
               <span class="setting-label">モード</span>
-              <label><input type="checkbox" id="set-hiragana" checked> ひらがな</label>
+              <label><input type="checkbox" id="set-hiragana" checked onchange="app.state.settings.hiragana = this.checked"> ひらがな</label>
               <label style="text-decoration: line-through; opacity: 0.5; cursor: not-allowed;" title="現在準備中です"><input type="checkbox" id="set-voice" disabled> ボイス</label>
-            </div>
-
-            <div class="setting-divider"></div>
-
-            <div class="setting-group">
-              <span class="setting-label">はなしかた</span>
-              <label><input type="radio" name="set-mode" value="soft" checked> ふんわり</label>
-              <label><input type="radio" name="set-mode" value="hard"> しっかり</label>
             </div>
           </div>
           <div id="loading-indicator" class="loader">Loading...</div>
@@ -65,7 +57,18 @@
 
         <div id="view-chat" class="view-panel">
           <div id="chat-history-area">
-            <div class="chat-spacer"></div>
+            <div id="chat-header-switch-bar" class="chat-header-switch-bar">
+              <div class="hiragana-switch-wrapper">
+                <span class="hiragana-switch-label">ひらがな</span>
+                <label class="crayon-switch" title="ひらがなモードのきりかえ">
+                  <input type="checkbox" id="chat-set-hiragana" onchange="app.handlers.onChatToggleHiragana(this.checked)">
+                  <span class="crayon-slider"></span>
+                </label>
+              </div>
+            </div>
+            <div id="chat-messages-container">
+              <div class="chat-spacer"></div>
+            </div>
           </div>
           
           <div id="chat-input-area">
@@ -103,6 +106,24 @@
       <div class="modal-box">
         <h2>いまの きもちは？</h2>
         <div id="feeling-btn-container" class="grid-buttons"></div>
+      </div>
+    </div>
+
+    <div id="modal-talk-style" class="modal-overlay">
+      <div class="modal-box">
+        <h2>どうやって おはなしする？</h2>
+        <div id="talk-style-btn-container" class="talk-style-buttons">
+          <button type="button" class="btn-talk-style style-soft" onclick="app.handlers.onSelectTalkStyle('soft')">
+            <span class="style-icon">🌸</span>
+            <span class="style-text">ふんわり<br>はなしたい</span>
+          </button>
+          <button type="button" class="btn-talk-style style-hard" onclick="app.handlers.onSelectTalkStyle('hard')">
+            <span class="style-icon">🍀</span>
+            <span class="style-text">しっかり<br>そうだんしたい</span>
+          </button>
+        </div>
+        <div class="talk-style-subtext">いつでも あとから かえられるよ</div>
+        <button type="button" class="btn-back-link" onclick="app.handlers.onBackToFeeling()">↩ きもちを えらびなおす</button>
       </div>
     </div>
 

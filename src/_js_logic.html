@@ -76,15 +76,47 @@
     // ==============================================
     handlers: {
       onStartFlow: function() {
-        app.state.settings.hiragana = document.getElementById('set-hiragana').checked;
+        const titleHiragana = document.getElementById('set-hiragana');
+        if (titleHiragana) {
+          app.state.settings.hiragana = titleHiragana.checked;
+        }
         app.state.settings.voice = false; // ボイス機能は現在未実装
+
+        // チャット画面側のスイッチも同期
+        const chatSwitch = document.getElementById('chat-set-hiragana');
+        if (chatSwitch) {
+          chatSwitch.checked = app.state.settings.hiragana;
+        }
+
         const feelings = ['うれしい', 'ふつう', 'かなしい', 'おこってる', 'つかれた', 'ドキドキ', 'モヤモヤ'];
         Renderer.renderButtons('feeling-btn-container', feelings, (selected) => {
            app.state.session.startFeel = selected;
            Renderer.toggleModal('modal-feeling', false);
-           app.logic.startChat();
+           // ★感情選択後、「どうやっておはなしする？」を表示
+           Renderer.toggleModal('modal-talk-style', true);
         });
         Renderer.toggleModal('modal-feeling', true);
+      },
+
+      onSelectTalkStyle: function(style) {
+        // style: 'soft' (ふんわり) または 'hard' (しっかり)
+        app.state.settings.mode = (style === 'hard') ? 'hard' : 'soft';
+        Renderer.toggleModal('modal-talk-style', false);
+        app.logic.startChat();
+      },
+
+      onBackToFeeling: function() {
+        Renderer.toggleModal('modal-talk-style', false);
+        Renderer.toggleModal('modal-feeling', true);
+      },
+
+      onChatToggleHiragana: function(checked) {
+        app.state.settings.hiragana = checked;
+        // タイトル画面のチェックボックスも同期
+        const titleCheckbox = document.getElementById('set-hiragana');
+        if (titleCheckbox) {
+          titleCheckbox.checked = checked;
+        }
       },
 
       onShowRecord: function() {
@@ -240,7 +272,19 @@
         Renderer.switchView('view-chat');
         app.state.session.history = [];
         app.state.session.tempSummary = ''; 
-        document.getElementById('chat-history-area').innerHTML = '<div class="chat-spacer" style="height:20px;"></div>'; 
+
+        // チャット画面上部のひらがなスイッチを現在の設定と同期
+        const chatSwitch = document.getElementById('chat-set-hiragana');
+        if (chatSwitch) {
+          chatSwitch.checked = !!app.state.settings.hiragana;
+        }
+
+        const messagesContainer = document.getElementById('chat-messages-container');
+        if (messagesContainer) {
+          messagesContainer.innerHTML = '<div class="chat-spacer" style="height:10px;"></div>';
+        } else {
+          document.getElementById('chat-history-area').innerHTML = '<div class="chat-spacer" style="height:20px;"></div>';
+        }
         
         // ローディング表示（AIが挨拶を考えている演出）
         Renderer.toggleLoading(true);
@@ -489,9 +533,14 @@
           app.state.isRecognizing = false;
 
           // 2. チャット履歴の表示を消す
-          const historyArea = document.getElementById('chat-history-area');
-          if(historyArea) {
-             historyArea.innerHTML = '<div class="chat-spacer" style="height:20px;"></div>';
+          const messagesContainer = document.getElementById('chat-messages-container');
+          if (messagesContainer) {
+            messagesContainer.innerHTML = '<div class="chat-spacer" style="height:10px;"></div>';
+          } else {
+            const historyArea = document.getElementById('chat-history-area');
+            if (historyArea) {
+              historyArea.innerHTML = '<div class="chat-spacer" style="height:20px;"></div>';
+            }
           }
           
           // 3. 入力欄の中身を空にする
@@ -501,7 +550,7 @@
           });
 
           // 4. 開いているモーダル（感情選択や終了画面など）を全て閉じる
-          ['modal-feeling', 'modal-voice', 'modal-magic', 'modal-end'].forEach(id => {
+          ['modal-feeling', 'modal-talk-style', 'modal-voice', 'modal-magic', 'modal-end'].forEach(id => {
               Renderer.toggleModal(id, false);
           });
 

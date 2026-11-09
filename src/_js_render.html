@@ -56,6 +56,7 @@
     // ▼ チャットメッセージ追加（タイプライター演出付き） ▼
     addMessage: function(sender, text) {
       const historyArea = document.getElementById('chat-history-area');
+      const messagesContainer = document.getElementById('chat-messages-container') || historyArea;
       const row = document.createElement('div');
       row.className = `chat-row ${sender === 'user' ? 'user' : 'ai'}`;
       
@@ -63,7 +64,7 @@
       bubble.className = 'chat-bubble';
       
       row.appendChild(bubble);
-      historyArea.appendChild(row);
+      messagesContainer.appendChild(row);
 
       // 自動スクロール関数
       const scrollBottom = () => {
