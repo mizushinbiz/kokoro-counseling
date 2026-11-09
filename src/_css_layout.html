@@ -222,10 +222,12 @@
   #chat-history-area {
     flex: 1;
     overflow-y: auto;
+    overflow-x: hidden; /* 横スクロールバーの発生を防止 */
     padding: 20px 40px; /* 余白をたっぷりとる */
     display: flex;
     flex-direction: column;
     scroll-behavior: smooth;
+    box-sizing: border-box;
   }
   
   #chat-input-area {
@@ -305,6 +307,10 @@
   /* ▼ クレヨン風スクロールバー ▼ */
   ::-webkit-scrollbar {
     width: 16px;
+    height: 0; /* 横スクロールバーは表示しない */
+  }
+  ::-webkit-scrollbar:horizontal {
+    display: none;
   }
   ::-webkit-scrollbar-track {
     background: transparent; 
